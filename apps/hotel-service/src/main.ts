@@ -1,8 +1,15 @@
 import { NestFactory } from '@nestjs/core';
-import { HotelServiceModule } from './hotel-service.module';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(HotelServiceModule);
-  await app.listen(process.env.port ?? 3000);
+  const app = await NestFactory.create(AppModule);
+  await app.listen(process.env.HOTEL_SERVICE_PORT ?? 3001);
+  console.log(
+    'Hotel service is running on port ' +
+      (process.env.HOTEL_SERVICE_PORT ?? 3001),
+  );
 }
-bootstrap();
+void bootstrap().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
