@@ -30,6 +30,41 @@ export class HotelController {
     return this.hotelService.findOne(id);
   }
 
+  @Get('search/name/:name')
+  findByName(@Param('name') name: string) {
+    return this.hotelService.findByName(name);
+  }
+
+  @Get('search/description/:keyword')
+  findByDescription(@Param('keyword') keyword: string) {
+    return this.hotelService.findByDescription(keyword);
+  }
+
+  @Get('search/address/:keyword')
+  findByAddress(@Param('keyword') keyword: string) {
+    return this.hotelService.findByAddress(keyword);
+  }
+
+  @Get('search/city/:city')
+  findByCity(@Param('city') city: string) {
+    return this.hotelService.findByCity(city);
+  }
+
+  @Get('search/country/:country')
+  findByCountry(@Param('country') country: string) {
+    return this.hotelService.findByCountry(country);
+  }
+
+  @Get('search/rating/:rating')
+  findByRating(@Param('rating') rating: number) {
+    return this.hotelService.findByRating(rating);
+  }
+
+  @Get('search/price/:price')
+  findByPrice(@Param('price') price: number) {
+    return this.hotelService.findByPrice(price);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateHotelDto: UpdateHotelDto) {
     return this.hotelService.update(id, updateHotelDto);

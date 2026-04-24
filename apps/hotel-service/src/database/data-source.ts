@@ -13,8 +13,8 @@ export const dataSourceOptions: DataSourceOptions = {
   database: 'hotel_db',
   synchronize: false,
   logging: true,
-  entities: [join(__dirname, '../**/*.entity{.ts,.js}')],
-  migrations: [join(__dirname, '../migration/*{.ts,.js}')],
+  entities: [join(__dirname, '/../**/*.entity.{ts,js}')],
+  migrations: [join(__dirname, '/../migrations/*.{ts,js}')],
 };
 
 const dataSource = new DataSource(dataSourceOptions);
