@@ -1,26 +1,56 @@
 import { Injectable } from '@nestjs/common';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { Room } from './entities/room.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { HotelService } from '../hotel/hotel.service';
 
 @Injectable()
 export class RoomService {
-  create(createRoomDto: CreateRoomDto) {
-    return 'This action adds a new room';
+  constructor(
+    @InjectRepository(Room)
+    private readonly roomRepository: Repository<Room>,
+    private readonly hotelService: HotelService,
+  ) {}
+  async create(createRoomDto: CreateRoomDto) {
+    const hotel = await this.hotelService.findOne(createRoomDto.hotelId);
+    if (!hotel) {
+      throw new Error('Hotel not found');
+    }
+    const room = this.roomRepository.create({
+      ...createRoomDto,
+      status: createRoomDto.status
+        ? (createRoomDto.status.toUpperCase() as Room['status'])
+        : undefined,
+    });
+
+    return this.roomRepository.save(room);
   }
 
   findAll() {
-    return `This action returns all room`;
+    return this.roomRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} room`;
+  findOne(id: string) {
+    return this.roomRepository.findOne({ where: { id } });
   }
 
-  update(id: number, updateRoomDto: UpdateRoomDto) {
-    return `This action updates a #${id} room`;
+  async update(id: string, updateRoomDto: UpdateRoomDto) {
+    const room = await this.findOne(id);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    return this.roomRepository.update(id, {
+      ...updateRoomDto,
+      status: updateRoomDto.status
+        ? (updateRoomDto.status.toUpperCase() as Room['status'])
+        : undefined,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} room`;
+  remove(id: string) {
+    return this.roomRepository.delete(id);
   }
 }

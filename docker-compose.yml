@@ -1,0 +1,17 @@
+services:
+  travel-mysql:
+    image: mysql:8.0
+    container_name: travel-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: travel_db
+      MYSQL_USER: travel_booking_app
+      MYSQL_PASSWORD: tuan3012
+    ports:
+      - '3308:3306'
+    volumes:
+      - travel_mysql_data:/var/lib/mysql
+
+volumes:
+  travel_mysql_data:

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,7 +14,18 @@ export class HotelService {
     private readonly locationService: LocationService,
   ) {}
   async create(createHotelDto: CreateHotelDto) {
+    const existedHotel = await this.hotelRepository.findOne({
+      where: {
+        name: createHotelDto.name,
+      },
+    });
+
+    if (existedHotel) {
+      throw new ConflictException('Hotel already exists');
+    }
+
     const hotel = this.hotelRepository.create(createHotelDto);
+
     const newHotel = await this.hotelRepository.save(hotel);
 
     const location = {
