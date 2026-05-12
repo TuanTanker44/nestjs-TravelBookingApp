@@ -37,6 +37,15 @@
         "tsConfigPath": "apps/booking-service/tsconfig.app.json"
       }
     },
+    "database": {
+      "type": "library",
+      "root": "libs/database",
+      "entryFile": "index",
+      "sourceRoot": "libs/database/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/database/tsconfig.lib.json"
+      }
+    },
     "hotel-service": {
       "type": "application",
       "root": "apps/hotel-service",
@@ -44,6 +53,24 @@
       "sourceRoot": "apps/hotel-service/src",
       "compilerOptions": {
         "tsConfigPath": "apps/hotel-service/tsconfig.app.json"
+      }
+    },
+    "inventory-service": {
+      "type": "application",
+      "root": "apps/inventory-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/inventory-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/inventory-service/tsconfig.app.json"
+      }
+    },
+    "morniting": {
+      "type": "library",
+      "root": "libs/morniting",
+      "entryFile": "index",
+      "sourceRoot": "libs/morniting/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/morniting/tsconfig.lib.json"
       }
     },
     "notification-service": {
@@ -64,6 +91,24 @@
         "tsConfigPath": "apps/payment-service/tsconfig.app.json"
       }
     },
+    "rabbitmq": {
+      "type": "library",
+      "root": "libs/rabbitmq",
+      "entryFile": "index",
+      "sourceRoot": "libs/rabbitmq/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/rabbitmq/tsconfig.lib.json"
+      }
+    },
+    "redis": {
+      "type": "library",
+      "root": "libs/redis",
+      "entryFile": "index",
+      "sourceRoot": "libs/redis/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/redis/tsconfig.lib.json"
+      }
+    },
     "review-service": {
       "type": "application",
       "root": "apps/review-service",
@@ -71,6 +116,15 @@
       "sourceRoot": "apps/review-service/src",
       "compilerOptions": {
         "tsConfigPath": "apps/review-service/tsconfig.app.json"
+      }
+    },
+    "search-service": {
+      "type": "application",
+      "root": "apps/search-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/search-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/search-service/tsconfig.app.json"
       }
     },
     "travel-booking-app": {

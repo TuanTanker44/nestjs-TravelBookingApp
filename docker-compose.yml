@@ -1,0 +1,367 @@
+version: '3.9'
+
+# ==================================================
+# Shared build config
+# ==================================================
+x-nest-build: &nest-build
+  context: .
+  dockerfile: Dockerfile
+
+# ==================================================
+# Shared service config
+# ==================================================
+x-nest-service: &nest-service
+  restart: always
+
+  depends_on:
+    - mysql
+    - redis
+    - rabbitmq
+
+  networks:
+    - backend
+
+  environment: &nest-env
+    NODE_ENV: development
+
+    DB_HOST: mysql
+    DB_PORT: 3306
+    DB_USERNAME: root
+    DB_PASSWORD: root
+
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+
+    RABBITMQ_URL: amqp://rabbitmq:5672
+
+    CACHE_TTL: 300
+
+    PROMETHEUS_ENABLED: 'true'
+
+# ==================================================
+# Services
+# ==================================================
+services:
+  # =====================
+  # API Gateway
+  # =====================
+  api-gateway:
+    <<: *nest-service
+
+    container_name: api_gateway
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: api-gateway
+
+    environment:
+      <<: *nest-env
+      PORT: 3000
+
+    ports:
+      - '3000:3000'
+
+  # =====================
+  # Auth Service
+  # =====================
+  auth-service:
+    <<: *nest-service
+
+    container_name: auth_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: auth-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3001
+
+    ports:
+      - '3001:3001'
+
+  # =====================
+  # Inventory Service
+  # =====================
+  inventory-service:
+    <<: *nest-service
+
+    container_name: inventory_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: inventory-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3002
+
+    ports:
+      - '3002:3002'
+
+  # =====================
+  # Booking Service
+  # =====================
+  booking-service:
+    <<: *nest-service
+
+    container_name: booking_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: booking-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3003
+
+    ports:
+      - '3003:3003'
+
+  # =====================
+  # Hotel Service
+  # =====================
+  hotel-service:
+    <<: *nest-service
+
+    container_name: hotel_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: hotel-service
+
+    env_file:
+      - ./apps/hotel-service/.env
+
+    environment:
+      <<: *nest-env
+
+    ports:
+      - '3004:3004'
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # =====================
+  # Notification Service
+  # =====================
+  notification-service:
+    <<: *nest-service
+
+    container_name: notification_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: notification-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3005
+
+    ports:
+      - '3005:3005'
+
+  # =====================
+  # Payment Service
+  # =====================
+  payment-service:
+    <<: *nest-service
+
+    container_name: payment_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: payment-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3006
+
+    ports:
+      - '3006:3006'
+
+  # =====================
+  # Review Service
+  # =====================
+  review-service:
+    <<: *nest-service
+
+    container_name: review_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: review-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3007
+
+    ports:
+      - '3007:3007'
+
+  # =====================
+  # Search Service
+  # =====================
+  search-service:
+    <<: *nest-service
+
+    container_name: search_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: search-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3008
+
+    ports:
+      - '3008:3008'
+
+  # =====================
+  # User Service
+  # =====================
+  user-service:
+    <<: *nest-service
+
+    container_name: user_service
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: user-service
+
+    environment:
+      <<: *nest-env
+      PORT: 3009
+
+    ports:
+      - '3009:3009'
+
+  # =====================
+  # Frontend App
+  # =====================
+  travel-booking-app:
+    <<: *nest-service
+
+    container_name: travel_booking_app
+
+    build:
+      <<: *nest-build
+      args:
+        APP_NAME: travel-booking-app
+
+    environment:
+      <<: *nest-env
+      PORT: 3010
+
+    ports:
+      - '3010:3010'
+
+  # ==================================================
+  # Infrastructure
+  # ==================================================
+
+  # =====================
+  # MySQL
+  # =====================
+  mysql:
+    image: mysql:8
+
+    container_name: mysql_db
+
+    restart: always
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+
+    ports:
+      - '3308:3306'
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # =====================
+  # Redis
+  # =====================
+  redis:
+    image: redis:7
+
+    container_name: redis_cache
+
+    restart: always
+
+    ports:
+      - '6379:6379'
+
+    networks:
+      - backend
+
+  # =====================
+  # RabbitMQ
+  # =====================
+  rabbitmq:
+    image: rabbitmq:3-management
+
+    container_name: rabbitmq
+
+    restart: always
+
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+    networks:
+      - backend
+
+  # =====================
+  # Prometheus
+  # =====================
+  prometheus:
+    image: prom/prometheus
+
+    container_name: prometheus
+
+    restart: always
+
+    ports:
+      - '9090:9090'
+
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+    networks:
+      - backend
+
+# ==================================================
+# Volumes
+# ==================================================
+volumes:
+  mysql_data:
+
+# ==================================================
+# Networks
+# ==================================================
+networks:
+  backend:
+    driver: bridge
