@@ -16,6 +16,9 @@
     "outDir": "./dist",
     "rootDir": ".",
     "baseUrl": "./",
+    "types": [
+      "node"
+    ],
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -23,6 +26,31 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    "paths": {}
+    "paths": {
+      "@app/database": [
+        "libs/db/src"
+      ],
+      "@app/database/*": [
+        "libs/db/src/*"
+      ],
+      "@app/morniting": [
+        "libs/morniting/src"
+      ],
+      "@app/morniting/*": [
+        "libs/morniting/src/*"
+      ],
+      "@app/rabbitmq": [
+        "libs/rabbitmq/src"
+      ],
+      "@app/rabbitmq/*": [
+        "libs/rabbitmq/src/*"
+      ],
+      "@app/redis": [
+        "libs/redis/src"
+      ],
+      "@app/redis/*": [
+        "libs/redis/src/*"
+      ]
+    }
   }
 }

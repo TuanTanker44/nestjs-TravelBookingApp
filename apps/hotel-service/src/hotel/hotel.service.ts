@@ -1,22 +1,25 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Like, MoreThanOrEqual, Repository } from 'typeorm';
 import { Hotel } from './entities/hotel.entity';
-import { LocationService } from '../location/location.service';
 
 @Injectable()
 export class HotelService {
   constructor(
     @InjectRepository(Hotel)
     private readonly hotelRepository: Repository<Hotel>,
-    private readonly locationService: LocationService,
   ) {}
   async create(createHotelDto: CreateHotelDto) {
     const existedHotel = await this.hotelRepository.findOne({
       where: {
         name: createHotelDto.name,
+        status: 'ACTIVE',
       },
     });
 
@@ -24,76 +27,129 @@ export class HotelService {
       throw new ConflictException('Hotel already exists');
     }
 
-    const hotel = this.hotelRepository.create(createHotelDto);
+    const hotel = this.hotelRepository.create({
+      ...createHotelDto,
+      rating_avg: 0,
+      rating_count: 0,
+      status: 'ACTIVE',
+    });
 
     const newHotel = await this.hotelRepository.save(hotel);
-
-    const location = {
-      hotel_id: newHotel.id,
-      status: newHotel.status,
-      latitude: createHotelDto.latitude,
-      longitude: createHotelDto.longitude,
-    };
-
-    await this.locationService.create(location);
 
     return newHotel;
   }
 
   findAll() {
-    return this.hotelRepository.find();
+    return this.hotelRepository.find({
+      where: { status: 'ACTIVE' },
+    });
   }
 
   findOne(id: string) {
-    return this.hotelRepository.findOne({ where: { id } });
+    return this.hotelRepository.findOne({
+      where: { id, status: 'ACTIVE' },
+    });
   }
 
   findByName(name: string) {
-    return this.hotelRepository.findOne({ where: { name } });
+    return this.hotelRepository.findOne({
+      where: { name, status: 'ACTIVE' },
+    });
   }
 
   findByDescription(keyword: string) {
     return this.hotelRepository.find({
-      where: { description: Like(`%${keyword}%`) },
+      where: {
+        status: 'ACTIVE',
+        description: Like(`%${keyword}%`),
+      },
     });
   }
 
   findByAddress(keyword: string) {
     return this.hotelRepository.find({
-      where: { address: Like(`%${keyword}%`) },
+      where: {
+        status: 'ACTIVE',
+        address: Like(`%${keyword}%`),
+      },
     });
   }
 
   findByCity(city: string) {
-    return this.hotelRepository.find({ where: { city } });
+    return this.hotelRepository.find({
+      where: {
+        status: 'ACTIVE',
+        city: Like(`%${city}%`),
+      },
+    });
   }
 
   findByCountry(country: string) {
-    return this.hotelRepository.find({ where: { country } });
+    return this.hotelRepository.find({
+      where: {
+        status: 'ACTIVE',
+        country: Like(`%${country}%`),
+      },
+    });
   }
 
   findByRating(rating: number) {
     return this.hotelRepository.find({
       where: {
+        status: 'ACTIVE',
         rating_avg: MoreThanOrEqual(rating),
       },
     });
   }
 
   findByPrice(price: number) {
-    return this.hotelRepository.find({
-      where: [
-        { price_min: LessThanOrEqual(price) },
-        { price_max: MoreThanOrEqual(price) },
-      ],
-    });
+    return this.hotelRepository
+      .createQueryBuilder('hotel')
+      .where('hotel.status = :status', { status: 'ACTIVE' })
+      .andWhere('(hotel.price_min IS NULL OR hotel.price_min <= :price)', {
+        price,
+      })
+      .andWhere('(hotel.price_max IS NULL OR hotel.price_max >= :price)', {
+        price,
+      })
+      .getMany();
   }
 
   async update(id: string, updateHotelDto: UpdateHotelDto) {
-    return this.hotelRepository.update(id, updateHotelDto);
+    const hotel = await this.hotelRepository.findOne({
+      where: { id, status: 'ACTIVE' },
+    });
+
+    if (!hotel) {
+      throw new NotFoundException(`Hotel with id ${id} not found`);
+    }
+
+    if (updateHotelDto.name && updateHotelDto.name !== hotel.name) {
+      const duplicatedHotel = await this.hotelRepository.findOne({
+        where: { name: updateHotelDto.name, status: 'ACTIVE' },
+      });
+
+      if (duplicatedHotel) {
+        throw new ConflictException('Hotel already exists');
+      }
+    }
+
+    this.hotelRepository.merge(hotel, updateHotelDto);
+
+    return this.hotelRepository.save(hotel);
   }
 
-  remove(id: string) {
-    return this.hotelRepository.update(id, { status: 'INACTIVE' });
+  async remove(id: string) {
+    const hotel = await this.hotelRepository.findOne({
+      where: { id, status: 'ACTIVE' },
+    });
+
+    if (!hotel) {
+      throw new NotFoundException(`Hotel with id ${id} not found`);
+    }
+
+    hotel.status = 'INACTIVE';
+
+    return this.hotelRepository.save(hotel);
   }
 }

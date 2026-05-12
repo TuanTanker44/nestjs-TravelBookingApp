@@ -5,6 +5,7 @@ import { Room } from './entities/room.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HotelService } from '../hotel/hotel.service';
+import { RoomStatus } from './enums/room_status.enum';
 
 @Injectable()
 export class RoomService {
@@ -20,6 +21,9 @@ export class RoomService {
     }
     const room = this.roomRepository.create({
       ...createRoomDto,
+      type: createRoomDto.type
+        ? (createRoomDto.type.toUpperCase() as Room['type'])
+        : undefined,
       status: createRoomDto.status
         ? (createRoomDto.status.toUpperCase() as Room['status'])
         : undefined,
@@ -44,6 +48,9 @@ export class RoomService {
 
     return this.roomRepository.update(id, {
       ...updateRoomDto,
+      type: updateRoomDto.type
+        ? (updateRoomDto.type.toUpperCase() as Room['type'])
+        : undefined,
       status: updateRoomDto.status
         ? (updateRoomDto.status.toUpperCase() as Room['status'])
         : undefined,
@@ -51,6 +58,6 @@ export class RoomService {
   }
 
   remove(id: string) {
-    return this.roomRepository.delete(id);
+    return this.roomRepository.update(id, { status: RoomStatus.UNAVAILABLE });
   }
 }

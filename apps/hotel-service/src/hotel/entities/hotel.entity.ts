@@ -26,10 +26,10 @@ export class Hotel {
   @Column({ type: 'varchar', length: 255, nullable: true })
   country?: string;
 
-  @Column({ type: 'float', nullable: false })
+  @Column({ type: 'float', nullable: false, default: 0 })
   rating_avg!: number;
 
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'int', nullable: false, default: 0 })
   rating_count!: number;
 
   @Column({ type: 'float', nullable: true })
@@ -38,7 +38,7 @@ export class Hotel {
   @Column({ type: 'float', nullable: true })
   price_max?: number;
 
-  @Column({ type: 'varchar', length: 20, nullable: false })
+  @Column({ type: 'varchar', length: 20, nullable: false, default: 'ACTIVE' })
   status!: 'ACTIVE' | 'INACTIVE';
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

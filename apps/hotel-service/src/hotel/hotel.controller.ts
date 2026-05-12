@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  ParseFloatPipe,
 } from '@nestjs/common';
 import { HotelService } from './hotel.service';
 import { CreateHotelDto } from './dto/create-hotel.dto';
@@ -23,11 +24,6 @@ export class HotelController {
   @Get()
   findAll() {
     return this.hotelService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.hotelService.findOne(id);
   }
 
   @Get('search/name/:name')
@@ -56,13 +52,18 @@ export class HotelController {
   }
 
   @Get('search/rating/:rating')
-  findByRating(@Param('rating') rating: number) {
+  findByRating(@Param('rating', ParseFloatPipe) rating: number) {
     return this.hotelService.findByRating(rating);
   }
 
   @Get('search/price/:price')
-  findByPrice(@Param('price') price: number) {
+  findByPrice(@Param('price', ParseFloatPipe) price: number) {
     return this.hotelService.findByPrice(price);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.hotelService.findOne(id);
   }
 
   @Patch(':id')

@@ -1,10 +1,9 @@
-import { IsEmail, IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateHotelDto {
   @ApiProperty({ required: true })
   @IsString()
-  @IsEmail()
   name!: string;
 
   @ApiProperty({ required: false })
@@ -23,19 +22,13 @@ export class CreateHotelDto {
   @IsString()
   country!: string;
 
-  @ApiProperty({ required: true })
-  @IsNumber()
-  latitude!: number;
-
-  @ApiProperty({ required: true })
-  @IsNumber()
-  longitude!: number;
-
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsNumber()
   price_min?: number;
 
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsNumber()
   price_max?: number;
 }

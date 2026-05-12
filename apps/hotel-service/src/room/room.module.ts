@@ -4,10 +4,9 @@ import { RoomService } from './room.service';
 import { RoomController } from './room.controller';
 import { Room } from './entities/room.entity';
 import { HotelModule } from '../hotel/hotel.module';
-import { DatabaseModule } from 'lib/database/database.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Room]), DatabaseModule, HotelModule],
+  imports: [TypeOrmModule.forFeature([Room]), HotelModule],
   controllers: [RoomController],
   providers: [RoomService],
 })

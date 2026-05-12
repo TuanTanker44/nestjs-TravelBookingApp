@@ -6,12 +6,8 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-
-export enum RoomStatus {
-  AVAILABLE = 'available',
-  UNAVAILABLE = 'unavailable',
-  MAINTENANCE = 'maintenance',
-}
+import { RoomStatus } from '../enums/room_status.enum';
+import { RoomType } from '../enums/room_type.enum';
 
 @Entity('rooms')
 export class Room {
@@ -27,7 +23,7 @@ export class Room {
   name?: string; // "Deluxe Double Room"
 
   @Column({ type: 'varchar', length: 50 })
-  type!: 'single' | 'double' | 'group';
+  type!: RoomType;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price!: number;
@@ -36,8 +32,8 @@ export class Room {
   capacity!: number; // số người tối đa
 
   @Column({
-    type: 'enum',
-    enum: RoomStatus,
+    type: 'varchar',
+    length: 20,
     default: RoomStatus.AVAILABLE,
   })
   status!: RoomStatus;
