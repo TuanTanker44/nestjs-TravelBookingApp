@@ -1,19 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import { SearchRoomDto } from './dto/search-room.dto';
 
 export interface SearchResultItem {
+  id: string;
   hotelId: string;
-  hotelName: string;
-  city: string;
-  roomType: string;
-  facilities: string[];
-  pricePerNight: number;
-  rating: number;
-  maxGuests: number;
-  availableRooms: number;
-  availableFrom: string;
-  availableTo: string;
+  name?: string;
+  type: string;
+  price: number;
+  capacity: number;
+  status: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SearchResult {
@@ -22,51 +25,55 @@ export interface SearchResult {
   items: SearchResultItem[];
 }
 
-const HOTEL_CATALOG: SearchResultItem[] = [
-  {
-    hotelId: 'hotel-1',
-    hotelName: 'Sunrise Bay Hotel',
-    city: 'Da Nang',
-    roomType: 'Deluxe',
-    facilities: ['wifi', 'breakfast', 'pool'],
-    pricePerNight: 1200000,
-    rating: 4.7,
-    maxGuests: 3,
-    availableRooms: 12,
-    availableFrom: new Date().toISOString(),
-    availableTo: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    hotelId: 'hotel-2',
-    hotelName: 'River View Resort',
-    city: 'Da Lat',
-    roomType: 'Suite',
-    facilities: ['wifi', 'parking', 'spa'],
-    pricePerNight: 1850000,
-    rating: 4.9,
-    maxGuests: 4,
-    availableRooms: 8,
-    availableFrom: new Date().toISOString(),
-    availableTo: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    hotelId: 'hotel-3',
-    hotelName: 'City Center Stay',
-    city: 'Ho Chi Minh City',
-    roomType: 'Standard',
-    facilities: ['wifi', 'gym'],
-    pricePerNight: 850000,
-    rating: 4.2,
-    maxGuests: 2,
-    availableRooms: 20,
-    availableFrom: new Date().toISOString(),
-    availableTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 @Injectable()
 export class SearchServiceService {
-  searchRooms(query: SearchRoomDto): SearchResult {
+  private readonly hotelServiceUrl =
+    process.env.HOTEL_SERVICE_URL ?? 'http://localhost:3004';
+
+  private mapRoom(room: Partial<SearchResultItem>): SearchResultItem {
+    return {
+      id: room.id ?? '',
+      hotelId: room.hotelId ?? '',
+      name: room.name,
+      type: room.type ?? '',
+      price: Number(room.price ?? 0),
+      capacity: Number(room.capacity ?? 0),
+      status: room.status ?? '',
+      description: room.description,
+      createdAt: room.createdAt ? new Date(room.createdAt) : new Date(),
+      updatedAt: room.updatedAt ? new Date(room.updatedAt) : new Date(),
+    };
+  }
+
+  private async fetchRoomCatalog(): Promise<SearchResultItem[]> {
+    const endpoint = `${this.hotelServiceUrl}/room`;
+
+    let response: Response;
+    try {
+      response = await fetch(endpoint);
+    } catch {
+      throw new ServiceUnavailableException(
+        'Cannot connect to hotel-service room API',
+      );
+    }
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(
+        `Hotel-service room API returned status ${response.status}`,
+      );
+    }
+
+    const payload = (await response.json()) as unknown;
+    const rooms = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { data?: unknown[] }).data)
+        ? (payload as { data: unknown[] }).data
+        : [];
+
+    return rooms.map((room) => this.mapRoom(room as Partial<SearchResultItem>));
+  }
+
+  async searchRooms(query: SearchRoomDto): Promise<SearchResult> {
     const checkIn = new Date(query.checkIn);
     const checkOut = new Date(query.checkOut);
 
@@ -89,51 +96,37 @@ export class SearchServiceService {
     }
 
     const guestCount = (query.adults ?? 0) + (query.children ?? 0);
-    const requiredRooms = query.rooms ?? 1;
+    const roomCatalog = await this.fetchRoomCatalog();
 
-    const matches = HOTEL_CATALOG.filter((hotel) => {
-      const cityMatch = !query.city || hotel.city === query.city;
-      const roomTypeMatch = !query.roomType || hotel.roomType === query.roomType;
+    const matches = roomCatalog.filter((room) => {
+      const roomTypeMatch = !query.roomType || room.type === query.roomType;
       const priceMinMatch =
-        query.minPrice === undefined || hotel.pricePerNight >= query.minPrice;
+        query.minPrice === undefined || room.price >= query.minPrice;
       const priceMaxMatch =
-        query.maxPrice === undefined || hotel.pricePerNight <= query.maxPrice;
-      const ratingMatch =
-        query.minRating === undefined || hotel.rating >= query.minRating;
-      const guestMatch = guestCount <= hotel.maxGuests;
-      const roomMatch = requiredRooms <= hotel.availableRooms;
-      const availabilityMatch =
-        checkIn >= new Date(hotel.availableFrom) &&
-        checkOut <= new Date(hotel.availableTo);
-
-      const facilitiesMatch =
-        !query.facilities?.length ||
-        query.facilities.every((facility) => hotel.facilities.includes(facility));
+        query.maxPrice === undefined || room.price <= query.maxPrice;
+      const guestMatch = guestCount <= room.capacity;
+      const statusMatch = room.status === 'available';
 
       return (
-        cityMatch &&
         roomTypeMatch &&
         priceMinMatch &&
         priceMaxMatch &&
-        ratingMatch &&
         guestMatch &&
-        roomMatch &&
-        availabilityMatch &&
-        facilitiesMatch
+        statusMatch
       );
     });
 
-    const sortBy = query.sortBy ?? 'ratingDesc';
+    const sortBy = query.sortBy ?? 'priceAsc';
     const sortedMatches = [...matches].sort((left, right) => {
       if (sortBy === 'priceAsc') {
-        return left.pricePerNight - right.pricePerNight;
+        return left.price - right.price;
       }
 
       if (sortBy === 'priceDesc') {
-        return right.pricePerNight - left.pricePerNight;
+        return right.price - left.price;
       }
 
-      return right.rating - left.rating || left.pricePerNight - right.pricePerNight;
+      return right.updatedAt.getTime() - left.updatedAt.getTime();
     });
 
     const page = query.page ?? 1;
