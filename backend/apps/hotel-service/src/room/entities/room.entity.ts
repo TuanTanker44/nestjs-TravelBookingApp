@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { RoomStatus } from '../enums/room_status.enum';
 import { RoomType } from '../enums/room_type.enum';
+import { Amenity } from '../../amenity/entities/amenity.entity';
 
 @Entity('rooms')
 export class Room {
@@ -46,4 +49,18 @@ export class Room {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @ManyToMany(() => Amenity)
+  @JoinTable({
+    name: 'room_amenity',
+    joinColumn: {
+      name: 'room_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'amenity_id',
+      referencedColumnName: 'id',
+    },
+  })
+  amenities!: Amenity[];
 }

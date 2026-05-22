@@ -7,10 +7,12 @@ import {
   Param,
   Delete,
   ParseFloatPipe,
+  Query,
 } from '@nestjs/common';
 import { HotelService } from './hotel.service';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { SearchHotelDto } from './dto/search-hotel.dto';
 
 @Controller('hotel')
 export class HotelController {
@@ -74,5 +76,10 @@ export class HotelController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.hotelService.remove(id);
+  }
+
+  @Get('/search')
+  async searchHotels(@Query() query: SearchHotelDto) {
+    return this.hotelService.searchHotels(query.keyword);
   }
 }

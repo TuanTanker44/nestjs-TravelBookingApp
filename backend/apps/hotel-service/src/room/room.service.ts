@@ -60,4 +60,55 @@ export class RoomService {
   remove(id: string) {
     return this.roomRepository.update(id, { status: RoomStatus.UNAVAILABLE });
   }
+
+  // =========================
+  // SEARCH ROOM + AMENITY
+  // =========================
+  async searchRooms(keyword?: string, amenities?: string[]) {
+    const query = this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.amenities', 'amenity');
+
+    // =========================
+    // SEARCH ROOM NAME / TYPE
+    // =========================
+    if (keyword) {
+      query.andWhere(
+        `
+        (
+          LOWER(room.name) LIKE LOWER(:keyword)
+          OR LOWER(room.type) LIKE LOWER(:keyword)
+        )
+        `,
+        {
+          keyword: `%${keyword}%`,
+        },
+      );
+    }
+
+    // =========================
+    // FILTER AMENITIES
+    // =========================
+    if (amenities && amenities.length > 0) {
+      query
+        .andWhere('amenity.code IN (:...amenities)', {
+          amenities,
+        })
+        .groupBy('room.id')
+        .having('COUNT(DISTINCT amenity.id) = :count', {
+          count: amenities.length,
+        });
+    }
+
+    // =========================
+    // ROOM STATUS
+    // =========================
+    query.andWhere('room.status = :status', {
+      status: 'AVAILABLE',
+    });
+
+    query.orderBy('room.price', 'ASC');
+
+    return query.getMany();
+  }
 }

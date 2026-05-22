@@ -1,5 +1,5 @@
 export class SearchRoomDto {
-  city?: string;
+  city!: string;
 
   checkIn!: string;
 

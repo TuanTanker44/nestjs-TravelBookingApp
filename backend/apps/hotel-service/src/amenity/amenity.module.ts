@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AmentityService } from './amentity.service';
-import { AmentityController } from './amentity.controller';
-import { Amenity } from './entities/amentity.entity';
+import { AmentityService } from './amenity.service';
+import { AmentityController } from './amenity.controller';
+import { Amenity } from './entities/amenity.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Amenity])],

@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CreateAmentityDto } from './dto/create-amentity.dto';
-import { UpdateAmentityDto } from './dto/update-amentity.dto';
-import { Amenity } from './entities/amentity.entity';
+import { In, Repository } from 'typeorm';
+import { CreateAmentityDto } from './dto/create-amenity.dto';
+import { UpdateAmentityDto } from './dto/update-amenity.dto';
+import { Amenity } from './entities/amenity.entity';
 
 @Injectable()
 export class AmentityService {
@@ -50,5 +50,15 @@ export class AmentityService {
       throw new NotFoundException(`Amenity with id ${id} not found`);
     }
     return this.amenityRepository.delete(id);
+  }
+  // =========================
+  // FIND BY CODES
+  // =========================
+  async findByCodes(codes: string[]) {
+    return this.amenityRepository.find({
+      where: {
+        code: In(codes),
+      },
+    });
   }
 }

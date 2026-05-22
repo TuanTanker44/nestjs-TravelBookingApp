@@ -7,7 +7,7 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { RoomAmentityService } from './room_amentity.service';
+import { RoomAmentityService } from './room_amenity.service';
 import { CreateRoomAmentityDto } from './dto/create-room_amentity.dto';
 import { UpdateRoomAmentityDto } from './dto/update-room_amentity.dto';
 import { RoomAmenity } from './entities/room_amentity.entity';

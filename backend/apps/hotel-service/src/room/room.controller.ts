@@ -6,10 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { RoomService } from './room.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { SearchRoomDto } from './dto/search-room.dto';
 
 @Controller('room')
 export class RoomController {
@@ -38,5 +40,12 @@ export class RoomController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.roomService.remove(id);
+  }
+
+  @Get('/search')
+  async searchRooms(@Query() query: SearchRoomDto) {
+    const amenities = query.amenities ? query.amenities.split(',') : [];
+
+    return this.roomService.searchRooms(query.keyword, amenities);
   }
 }

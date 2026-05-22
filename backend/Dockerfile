@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 ARG APP_NAME=travel-booking-app
 
@@ -18,7 +18,7 @@ RUN npm ci
 # Build a single Nest application from the monorepo.
 RUN npm run build -- ${APP_NAME}
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 ARG APP_NAME=travel-booking-app
 ARG PORT=3000

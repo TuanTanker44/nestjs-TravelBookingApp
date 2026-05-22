@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Room } from '../../room/entities/room.entity';
 
 @Entity('amenities')
 export class Amenity {
@@ -16,4 +17,7 @@ export class Amenity {
 
   @Column({ nullable: true })
   updatedAt?: Date;
+
+  @ManyToMany(() => Room, (room) => room.amenities)
+  rooms!: Room[];
 }

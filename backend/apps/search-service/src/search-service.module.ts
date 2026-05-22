@@ -2,6 +2,11 @@ import { Module } from '@nestjs/common';
 import { SearchServiceController } from './search-service.controller';
 import { SearchServiceService } from './search-service.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
+import { join } from 'path';
+import { config } from 'dotenv';
+
+config({ path: join(process.cwd(), 'apps/search-service/.env') });
 
 @Module({
   imports: [
@@ -15,6 +20,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       autoLoadEntities: true,
       synchronize: true,
     }),
+    HttpModule,
   ],
   controllers: [SearchServiceController],
   providers: [SearchServiceService],

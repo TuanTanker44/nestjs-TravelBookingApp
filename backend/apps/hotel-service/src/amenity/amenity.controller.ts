@@ -7,9 +7,9 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { AmentityService } from './amentity.service';
-import { CreateAmentityDto } from './dto/create-amentity.dto';
-import { UpdateAmentityDto } from './dto/update-amentity.dto';
+import { AmentityService } from './amenity.service';
+import { CreateAmentityDto } from './dto/create-amenity.dto';
+import { UpdateAmentityDto } from './dto/update-amenity.dto';
 
 @Controller('amentity')
 export class AmentityController {

@@ -3,13 +3,17 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 
 import { SearchRoomDto } from './dto/search-room.dto';
+import { firstValueFrom } from 'rxjs/internal/firstValueFrom';
+import { SearchDto } from './dto/search.dto';
 
 export interface SearchResultItem {
   id: string;
   hotelId: string;
   name?: string;
+  city: string;
   type: string;
   price: number;
   capacity: number;
@@ -27,6 +31,7 @@ export interface SearchResult {
 
 @Injectable()
 export class SearchServiceService {
+  constructor(private readonly httpService: HttpService) {}
   private readonly hotelServiceUrl =
     process.env.HOTEL_SERVICE_URL ?? 'http://localhost:3004';
 
@@ -35,6 +40,7 @@ export class SearchServiceService {
       id: room.id ?? '',
       hotelId: room.hotelId ?? '',
       name: room.name,
+      city: room.city ?? '',
       type: room.type ?? '',
       price: Number(room.price ?? 0),
       capacity: Number(room.capacity ?? 0),
@@ -46,11 +52,23 @@ export class SearchServiceService {
   }
 
   private async fetchRoomCatalog(): Promise<SearchResultItem[]> {
-    const endpoint = `${this.hotelServiceUrl}/room`;
+    const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
+    const roomEndpoint = `${this.hotelServiceUrl}/room`;
+
+    // const hotels = await this.fetchHotelsByCity(query.city);
+
+    // const hotelIds = hotels.map((hotel) => hotel.id);
+
+    // if (!hotelIds.length) {
+    //   return {
+    //     total: 0,
+    //     items: [],
+    //   };
+    // }
 
     let response: Response;
     try {
-      response = await fetch(endpoint);
+      response = await fetch(roomEndpoint);
     } catch {
       throw new ServiceUnavailableException(
         'Cannot connect to hotel-service room API',
@@ -99,6 +117,8 @@ export class SearchServiceService {
     const roomCatalog = await this.fetchRoomCatalog();
 
     const matches = roomCatalog.filter((room) => {
+      const cityMatch =
+        query.city || room.city.toLowerCase() === query.city.toLowerCase();
       const roomTypeMatch = !query.roomType || room.type === query.roomType;
       const priceMinMatch =
         query.minPrice === undefined || room.price >= query.minPrice;
@@ -108,6 +128,7 @@ export class SearchServiceService {
       const statusMatch = room.status === 'available';
 
       return (
+        cityMatch &&
         roomTypeMatch &&
         priceMinMatch &&
         priceMaxMatch &&
@@ -138,5 +159,35 @@ export class SearchServiceService {
       total: sortedMatches.length,
       items: sortedMatches.slice(offset, offset + limit),
     };
+  }
+  // =========================
+  // SEARCH HOTEL
+  // =========================
+  async searchHotels(keyword?: string) {
+    const response = await firstValueFrom(
+      this.httpService.get('http://hotel-service:3001/hotels/search', {
+        params: {
+          keyword,
+        },
+      }),
+    );
+
+    return response.data as SearchDto;
+  }
+
+  // =========================
+  // SEARCH ROOM
+  // =========================
+  async searchRoomsByKeyword(searchDto: SearchDto) {
+    const response = await firstValueFrom(
+      this.httpService.get('http://hotel-service:3001/rooms/search', {
+        params: {
+          keyword: searchDto.keyword,
+          amenities: searchDto.amenities,
+        },
+      }),
+    );
+
+    return response.data as SearchDto;
   }
 }

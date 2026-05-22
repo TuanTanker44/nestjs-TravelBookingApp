@@ -6,7 +6,7 @@ import {
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, MoreThanOrEqual, Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
 import { Hotel } from './entities/hotel.entity';
 
 @Injectable()
@@ -15,6 +15,33 @@ export class HotelService {
     @InjectRepository(Hotel)
     private readonly hotelRepository: Repository<Hotel>,
   ) {}
+
+  private normalizeKeyword(value: string): string {
+    return value.trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  private applyNormalizedLike(
+    query: SelectQueryBuilder<Hotel>,
+    field: string,
+    keyword: string,
+    alias = 'hotel',
+  ): SelectQueryBuilder<Hotel> {
+    const normalized = this.normalizeKeyword(keyword);
+
+    return query.andWhere(
+      `
+    REPLACE(
+      LOWER(${alias}.${field}),
+      ' ',
+      ''
+    ) LIKE :keyword
+    `,
+      {
+        keyword: `%${normalized}%`,
+      },
+    );
+  }
+
   async create(createHotelDto: CreateHotelDto) {
     const existedHotel = await this.hotelRepository.findOne({
       where: {
@@ -51,46 +78,66 @@ export class HotelService {
     });
   }
 
-  findByName(name: string) {
-    return this.hotelRepository.findOne({
-      where: { name, status: 'ACTIVE' },
+  async findByName(name: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
     });
+
+    this.applyNormalizedLike(query, 'name', name);
+
+    return query.getOne();
   }
 
-  findByDescription(keyword: string) {
-    return this.hotelRepository.find({
-      where: {
-        status: 'ACTIVE',
-        description: Like(`%${keyword}%`),
-      },
+  async findByDescription(keyword: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
     });
+
+    this.applyNormalizedLike(query, 'description', keyword);
+
+    return query.getMany();
   }
 
-  findByAddress(keyword: string) {
-    return this.hotelRepository.find({
-      where: {
-        status: 'ACTIVE',
-        address: Like(`%${keyword}%`),
-      },
+  async findByAddress(keyword: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
     });
+
+    this.applyNormalizedLike(query, 'address', keyword);
+
+    return query.getMany();
   }
 
-  findByCity(city: string) {
-    return this.hotelRepository.find({
-      where: {
-        status: 'ACTIVE',
-        city: Like(`%${city}%`),
-      },
+  async findByCity(city: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
     });
+
+    this.applyNormalizedLike(query, 'city', city);
+
+    query.orderBy('hotel.rating_avg', 'DESC');
+
+    return query.getMany();
   }
 
-  findByCountry(country: string) {
-    return this.hotelRepository.find({
-      where: {
-        status: 'ACTIVE',
-        country: Like(`%${country}%`),
-      },
+  async findByCountry(country: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
     });
+
+    this.applyNormalizedLike(query, 'country', country);
+
+    return query.getMany();
   }
 
   findByRating(rating: number) {
@@ -151,5 +198,43 @@ export class HotelService {
     hotel.status = 'INACTIVE';
 
     return this.hotelRepository.save(hotel);
+  }
+  // =========================
+  // SEARCH HOTEL
+  // =========================
+  async searchHotels(keyword?: string) {
+    const query = this.hotelRepository.createQueryBuilder('hotel');
+
+    query.where('hotel.status = :status', {
+      status: 'ACTIVE',
+    });
+
+    if (keyword) {
+      const normalized = this.normalizeKeyword(keyword);
+
+      query.andWhere(
+        `
+      REPLACE(LOWER(hotel.name), ' ', '')
+      LIKE :keyword
+
+      OR
+
+      REPLACE(LOWER(hotel.city), ' ', '')
+      LIKE :keyword
+
+      OR
+
+      REPLACE(LOWER(hotel.country), ' ', '')
+      LIKE :keyword
+      `,
+        {
+          keyword: `%${normalized}%`,
+        },
+      );
+    }
+
+    query.orderBy('hotel.rating_avg', 'DESC');
+
+    return query.getMany();
   }
 }
