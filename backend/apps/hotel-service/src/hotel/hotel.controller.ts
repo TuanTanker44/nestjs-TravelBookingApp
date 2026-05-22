@@ -23,9 +23,15 @@ export class HotelController {
     return this.hotelService.create(createHotelDto);
   }
 
-  @Get()
-  findAll() {
-    return this.hotelService.findAll();
+  @Get('search')
+  async search(@Query() dto: SearchHotelDto) {
+    console.log(dto);
+
+    const result = await this.hotelService.search(dto);
+
+    console.log(result);
+
+    return result;
   }
 
   @Get('search/name/:name')
@@ -63,6 +69,11 @@ export class HotelController {
     return this.hotelService.findByPrice(price);
   }
 
+  @Get()
+  findAll() {
+    return this.hotelService.findAll();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.hotelService.findOne(id);
@@ -76,10 +87,5 @@ export class HotelController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.hotelService.remove(id);
-  }
-
-  @Get('/search')
-  async searchHotels(@Query() query: SearchHotelDto) {
-    return this.hotelService.searchHotels(query.keyword);
   }
 }

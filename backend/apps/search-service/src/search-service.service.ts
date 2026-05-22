@@ -52,7 +52,7 @@ export class SearchServiceService {
   }
 
   private async fetchRoomCatalog(): Promise<SearchResultItem[]> {
-    const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
+    // const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
     const roomEndpoint = `${this.hotelServiceUrl}/room`;
 
     // const hotels = await this.fetchHotelsByCity(query.city);

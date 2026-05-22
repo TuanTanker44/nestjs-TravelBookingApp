@@ -51,9 +51,7 @@ export class AmentityService {
     }
     return this.amenityRepository.delete(id);
   }
-  // =========================
-  // FIND BY CODES
-  // =========================
+
   async findByCodes(codes: string[]) {
     return this.amenityRepository.find({
       where: {
