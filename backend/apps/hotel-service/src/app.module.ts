@@ -7,7 +7,7 @@ import { HotelModule } from './hotel/hotel.module';
 import { RoomModule } from './room/room.module';
 import { AmentityModule } from './amenity/amenity.module';
 import { RoomInventoryModule } from './room_inventory/room_inventory.module';
-import { RoomAmentityModule } from './room_amenity/room_amenity.module';
+import { RoomAmenityModule } from './room_amenity/room_amenity.module';
 
 config({ path: join(process.cwd(), 'apps/hotel-service/.env') });
 
@@ -27,7 +27,7 @@ config({ path: join(process.cwd(), 'apps/hotel-service/.env') });
     RoomModule,
     AmentityModule,
     RoomInventoryModule,
-    RoomAmentityModule,
+    RoomAmenityModule,
   ],
 })
 export class AppModule {}
