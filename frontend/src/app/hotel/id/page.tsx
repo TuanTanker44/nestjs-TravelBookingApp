@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 
 const hotels = [
@@ -41,8 +42,11 @@ export default function HotelDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
-      <img
+      <Image
         src={hotel.image}
+        alt={hotel.name}
+        width={1600}
+        height={900}
         className="h-[500px] w-full rounded-3xl object-cover"
       />
 
