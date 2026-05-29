@@ -26,7 +26,7 @@ export default function RegisterPage() {
       toast.success("Register success");
 
       router.push("/login");
-    } catch (err) {
+    } catch {
       toast.error("Register failed");
     }
   };
