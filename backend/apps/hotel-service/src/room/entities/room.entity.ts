@@ -7,10 +7,12 @@ import {
   Index,
   ManyToMany,
   JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { RoomStatus } from '../enums/room_status.enum';
 import { RoomType } from '../enums/room_type.enum';
 import { Amenity } from '../../amenity/entities/amenity.entity';
+import { RoomInventory } from './room_inventory.entity';
 
 @Entity('rooms')
 export class Room {
@@ -63,4 +65,7 @@ export class Room {
     },
   })
   amenities!: Amenity[];
+
+  @OneToMany(() => RoomInventory, (inventory) => inventory.room)
+  inventories!: RoomInventory[];
 }
