@@ -25,12 +25,7 @@ export class HotelController {
 
   @Get('search')
   async search(@Query() dto: SearchHotelDto) {
-    console.log(dto);
-
     const result = await this.hotelService.search(dto);
-
-    console.log(result);
-
     return result;
   }
 

@@ -1,23 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { RoomAmenity } from './entities/room_amentity.entity';
-import { CreateRoomAmentityDto } from './dto/create-room_amentity.dto';
-import { UpdateRoomAmentityDto } from './dto/update-room_amentity.dto';
+import { CreateRoomAmenityDto } from './dto/create-room_amenity.dto';
+import { UpdateRoomAmenityDto } from './dto/update-room_amenity.dto';
 
 @Injectable()
-export class RoomAmentityService {
+export class RoomAmenityService {
   constructor(
     @InjectRepository(RoomAmenity)
     private readonly roomAmenityRepository: Repository<RoomAmenity>,
   ) {}
 
   async create(
-    createRoomAmentityDto: CreateRoomAmentityDto,
+    createRoomAmenityDto: CreateRoomAmenityDto,
   ): Promise<RoomAmenity> {
-    const roomAmenity = this.roomAmenityRepository.create(
-      createRoomAmentityDto,
-    );
+    const roomAmenity = this.roomAmenityRepository.create(createRoomAmenityDto);
     return this.roomAmenityRepository.save(roomAmenity);
   }
 
@@ -55,15 +53,50 @@ export class RoomAmentityService {
 
   async update(
     id: string,
-    updateRoomAmentityDto: UpdateRoomAmentityDto,
+    updateRoomAmenityDto: UpdateRoomAmenityDto,
   ): Promise<RoomAmenity> {
     const roomAmenity = await this.findOne(id);
-    Object.assign(roomAmenity, updateRoomAmentityDto);
+    Object.assign(roomAmenity, updateRoomAmenityDto);
     return this.roomAmenityRepository.save(roomAmenity);
   }
 
   async remove(id: string): Promise<void> {
     const roomAmenity = await this.findOne(id);
     await this.roomAmenityRepository.remove(roomAmenity);
+  }
+
+  private applyAmenityFilter(
+    query: SelectQueryBuilder<RoomAmenity>,
+    codes?: string[],
+  ) {
+    if (!codes?.length) {
+      return query;
+    }
+
+    return query
+      .leftJoin('room.amenities', 'amenity')
+      .andWhere('amenity.code IN (:...codes)', { codes })
+      .groupBy('room.id')
+      .having('COUNT(DISTINCT amenity.id) = :count', { count: codes.length });
+  }
+
+  async applyAmenityFilterWithRooms(
+    query: SelectQueryBuilder<RoomAmenity>,
+    codes?: string[],
+  ) {
+    if (!codes?.length) {
+      return query.getMany();
+    }
+    this.applyAmenityFilter(query, codes);
+    return query.getMany();
+  }
+
+  async searchRoomAmenities(codes: string[]): Promise<RoomAmenity[]> {
+    if (!codes?.length) {
+      return this.roomAmenityRepository.find();
+    }
+    const query = this.roomAmenityRepository.createQueryBuilder('roomAmenity');
+    this.applyAmenityFilter(query, codes);
+    return query.getMany();
   }
 }

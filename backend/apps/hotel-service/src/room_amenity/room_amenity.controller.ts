@@ -6,55 +6,62 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
-import { RoomAmentityService } from './room_amenity.service';
-import { CreateRoomAmentityDto } from './dto/create-room_amentity.dto';
-import { UpdateRoomAmentityDto } from './dto/update-room_amentity.dto';
+import { RoomAmenityService } from './room_amenity.service';
+import { CreateRoomAmenityDto } from './dto/create-room_amenity.dto';
+import { UpdateRoomAmenityDto } from './dto/update-room_amenity.dto';
 import { RoomAmenity } from './entities/room_amentity.entity';
+import { SearchRoomAmenityDto } from './dto/search-room_amenity.dto';
 
-@Controller('room-amentity')
-export class RoomAmentityController {
-  constructor(private readonly roomAmentityService: RoomAmentityService) {}
+@Controller('room-amenity')
+export class RoomAmenityController {
+  constructor(private readonly roomAmenityService: RoomAmenityService) {}
 
   @Post()
   create(
-    @Body() createRoomAmentityDto: CreateRoomAmentityDto,
+    @Body() createRoomAmenityDto: CreateRoomAmenityDto,
   ): Promise<RoomAmenity> {
-    return this.roomAmentityService.create(createRoomAmentityDto);
+    return this.roomAmenityService.create(createRoomAmenityDto);
   }
 
   @Get()
   findAll(): Promise<RoomAmenity[]> {
-    return this.roomAmentityService.findAll();
+    return this.roomAmenityService.findAll();
   }
 
-  @Get('by-room/:roomId')
+  @Get('room/')
+  findByAmenity(@Query() dto: SearchRoomAmenityDto): Promise<RoomAmenity[]> {
+    const amenityCodes: string[] = dto.amenity_codes ?? [];
+    return this.roomAmenityService.searchRoomAmenities(amenityCodes);
+  }
+  @Get('room/:roomId')
   findByRoomId(@Param('roomId') roomId: string): Promise<RoomAmenity[]> {
-    return this.roomAmentityService.findByRoomId(roomId);
+    return this.roomAmenityService.findByRoomId(roomId);
   }
 
-  @Get('by-amenity/:amenityId')
+  @Get('amenity/:amenityId')
   findByAmenityId(
     @Param('amenityId') amenityId: string,
   ): Promise<RoomAmenity[]> {
-    return this.roomAmentityService.findByAmenityId(+amenityId);
+    return this.roomAmenityService.findByAmenityId(+amenityId);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string): Promise<RoomAmenity> {
-    return this.roomAmentityService.findOne(id);
+    return this.roomAmenityService.findOne(id);
   }
 
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body() updateRoomAmentityDto: UpdateRoomAmentityDto,
+    @Body() updateRoomAmenityDto: UpdateRoomAmenityDto,
   ): Promise<RoomAmenity> {
-    return this.roomAmentityService.update(id, updateRoomAmentityDto);
+    return this.roomAmenityService.update(id, updateRoomAmenityDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string): Promise<void> {
-    return this.roomAmentityService.remove(id);
+    return this.roomAmenityService.remove(id);
   }
 }

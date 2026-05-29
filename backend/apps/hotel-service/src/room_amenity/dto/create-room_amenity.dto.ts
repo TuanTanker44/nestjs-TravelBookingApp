@@ -1,6 +1,6 @@
 import { IsUUID, IsNotEmpty, IsNumber, Min } from 'class-validator';
 
-export class CreateRoomAmentityDto {
+export class CreateRoomAmenityDto {
   @IsUUID()
   @IsNotEmpty()
   roomId!: string;

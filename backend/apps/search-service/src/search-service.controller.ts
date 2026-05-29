@@ -25,9 +25,6 @@ export class SearchServiceController {
   // =========================
   @Get('/room')
   searchRoomsByKeyword(@Query() query: SearchDto) {
-    return this.searchServiceService.searchRoomsByKeyword(
-      query.keyword,
-      query.amenities,
-    );
+    return this.searchServiceService.searchRoomsByKeyword(query);
   }
 }

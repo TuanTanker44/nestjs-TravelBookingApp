@@ -3,9 +3,11 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room } from './entities/room.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { HotelService } from '../hotel/hotel.service';
 import { RoomStatus } from './enums/room_status.enum';
+import { SearchRoomDto } from './dto/search-room.dto';
+import { RoomAmenityService } from '../room_amenity/room_amenity.service';
 
 @Injectable()
 export class RoomService {
@@ -13,6 +15,7 @@ export class RoomService {
     @InjectRepository(Room)
     private readonly roomRepository: Repository<Room>,
     private readonly hotelService: HotelService,
+    private readonly roomAmenityService: RoomAmenityService,
   ) {}
   async create(createRoomDto: CreateRoomDto) {
     const hotel = await this.hotelService.findOne(createRoomDto.hotelId);
@@ -57,58 +60,158 @@ export class RoomService {
     });
   }
 
-  remove(id: string) {
+  async remove(id: string) {
+    const room = await this.findOne(id);
+    if (!room) {
+      throw new Error('Room not found');
+    }
     return this.roomRepository.update(id, { status: RoomStatus.UNAVAILABLE });
   }
 
-  // =========================
-  // SEARCH ROOM + AMENITY
-  // =========================
-  async searchRooms(keyword?: string, amenities?: string[]) {
-    const query = this.roomRepository
+  private baseQuery() {
+    return this.roomRepository
       .createQueryBuilder('room')
-      .leftJoinAndSelect('room.amenities', 'amenity');
+      .where('room.status = :status', {
+        status: 'ACTIVE',
+      });
+  }
 
-    // =========================
-    // SEARCH ROOM NAME / TYPE
-    // =========================
+  private normalizeKeyword(value: string | undefined): string {
+    return value?.trim().toLowerCase().replace(/\s+/g, '') || '';
+  }
+
+  // Áp dụng LIKE với chuỗi đã chuẩn hóa
+  private applyNormalizedLike(
+    query: SelectQueryBuilder<Room>,
+    field: string,
+    keyword: string,
+    alias = 'room',
+  ): SelectQueryBuilder<Room> {
+    const normalized = this.normalizeKeyword(keyword);
+
+    return query.andWhere(
+      `
+      REPLACE(
+        LOWER(${alias}.${field}),
+        ' ',
+        ''
+      ) LIKE :keyword
+      `,
+      {
+        keyword: `%${normalized}%`,
+      },
+    );
+  }
+
+  private roomKeywordSearch(query: SelectQueryBuilder<Room>, keyword?: string) {
     if (keyword) {
-      query.andWhere(
-        `
-        (
-          LOWER(room.name) LIKE LOWER(:keyword)
-          OR LOWER(room.type) LIKE LOWER(:keyword)
-        )
-        `,
-        {
-          keyword: `%${keyword}%`,
-        },
-      );
+      this.applyNormalizedLike(query, 'name', keyword);
+      this.applyNormalizedLike(query, 'description', keyword);
     }
+  }
 
-    // =========================
-    // FILTER AMENITIES
-    // =========================
-    if (amenities && amenities.length > 0) {
-      query
-        .andWhere('amenity.code IN (:...amenities)', {
-          amenities,
-        })
-        .groupBy('room.id')
-        .having('COUNT(DISTINCT amenity.id) = :count', {
-          count: amenities.length,
+  private roomIntrinsicFilter(
+    query: SelectQueryBuilder<Room>,
+    type?: string,
+    capacity?: number,
+    name?: string,
+    description?: string,
+  ) {
+    if (type) {
+      this.applyNormalizedLike(query, 'type', type, 'room');
+    }
+    if (capacity) {
+      query.andWhere('room.capacity = :capacity', { capacity });
+    }
+    if (name) {
+      this.applyNormalizedLike(query, 'name', name, 'room');
+    }
+    if (description) {
+      this.applyNormalizedLike(query, 'description', description, 'room');
+    }
+  }
+
+  // private applyAvailabilityFilter(checkIn?: Date, checkOut?: Date) {}
+
+  private applyAmenityFilter(amenities?: string[]) {
+    return this.roomAmenityService.searchRoomAmenities(amenities || []);
+  }
+
+  private applyPriceFilter(
+    query: SelectQueryBuilder<Room>,
+    minPrice?: number,
+    maxPrice?: number,
+    priceLevel?: string,
+  ) {
+    if (minPrice) {
+      query.andWhere('room.price >= :minPrice', { minPrice });
+    }
+    if (maxPrice) {
+      query.andWhere('room.price <= :maxPrice', { maxPrice });
+    }
+    if (priceLevel) {
+      const levels: Record<string, [number, number]> = {
+        budget: [0, 200],
+        mid: [200, 500],
+        luxury: [500, Number.MAX_SAFE_INTEGER],
+      };
+      const range = levels[priceLevel.toLowerCase()];
+      if (range) {
+        query.andWhere('room.price >= :minPrice AND room.price <= :maxPrice', {
+          minPrice: range[0],
+          maxPrice: range[1],
         });
+      }
+    }
+  }
+
+  async searchRooms(dto: SearchRoomDto) {
+    const query = this.baseQuery();
+
+    // hotel filter
+    if (dto.hotelId) {
+      query.andWhere('room.hotelId = :hotelId', {
+        hotelId: dto.hotelId,
+      });
     }
 
-    // =========================
-    // ROOM STATUS
-    // =========================
-    query.andWhere('room.status = :status', {
-      status: 'AVAILABLE',
-    });
+    // keyword search
+    this.roomKeywordSearch(query, dto.keyword);
 
-    query.orderBy('room.price', 'ASC');
+    // intrinsic filters
+    this.roomIntrinsicFilter(query, dto.type, dto.capacity);
 
-    return query.getMany();
+    // price filters
+    this.applyPriceFilter(query, dto.minPrice, dto.maxPrice, dto.priceLevel);
+
+    // amenity filters
+    await this.applyAmenityFilter(dto.amenities);
+
+    // availability filter
+    // this.applyAvailabilityFilter(query, dto.checkIn, dto.checkOut);
+
+    // status filter
+    if (dto.status) {
+      query.andWhere('room.status = :status', {
+        status: dto.status,
+      });
+    }
+
+    // sorting
+    query.orderBy(`room.${dto.sortBy}`, dto.order);
+
+    // pagination
+    query.skip((dto.page - 1) * dto.limit);
+    query.take(dto.limit);
+
+    const [rooms, total] = await query.getManyAndCount();
+
+    return {
+      data: rooms,
+      total,
+      page: dto.page,
+      limit: dto.limit,
+      totalPages: Math.ceil(total / dto.limit),
+    };
   }
 }
