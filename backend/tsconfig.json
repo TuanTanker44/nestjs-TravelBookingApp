@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
-    "module": "nodenext",
+    "module": "NodeNext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
@@ -11,46 +11,29 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
+    "target": "es2022",
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
     "baseUrl": "./",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
+    "strict": true,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@app/database": [
-        "libs/db/src"
-      ],
-      "@app/database/*": [
-        "libs/db/src/*"
-      ],
-      "@app/morniting": [
-        "libs/morniting/src"
-      ],
-      "@app/morniting/*": [
-        "libs/morniting/src/*"
-      ],
-      "@app/rabbitmq": [
-        "libs/rabbitmq/src"
-      ],
-      "@app/rabbitmq/*": [
-        "libs/rabbitmq/src/*"
-      ],
-      "@app/redis": [
-        "libs/redis/src"
-      ],
-      "@app/redis/*": [
-        "libs/redis/src/*"
-      ]
+      "@app/database": ["libs/db/src"],
+      "@app/database/*": ["libs/db/src/*"],
+      "@app/morniting": ["libs/morniting/src"],
+      "@app/morniting/*": ["libs/morniting/src/*"],
+      "@app/rabbitmq": ["libs/rabbitmq/src"],
+      "@app/rabbitmq/*": ["libs/rabbitmq/src/*"],
+      "@app/redis": ["libs/redis/src"],
+      "@app/redis/*": ["libs/redis/src/*"]
     }
   }
 }
