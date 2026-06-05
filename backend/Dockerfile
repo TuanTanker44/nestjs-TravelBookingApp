@@ -1,59 +1,39 @@
-# =========================
-# Builder Stage
-# =========================
 FROM node:24-alpine AS builder
 
 ARG APP_NAME=travel-booking-app
 
 WORKDIR /app
 
-# Native build tools
+# Install native build tools required by some Node dependencies.
 RUN apk add --no-cache python3 make g++
 
-# Enable pnpm
-RUN corepack enable
-
-# Copy dependency files trước để tận dụng cache
-COPY package.json pnpm-lock.yaml ./
+# Cache dependency install separately from source copy.
+COPY package*.json ./
 COPY nest-cli.json tsconfig*.json ./
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source code
 COPY apps ./apps
 COPY libs ./libs
 
-# Build app
-RUN pnpm run build -- ${APP_NAME}
+RUN npm ci
 
-# Chỉ giữ production dependencies
-RUN pnpm prune --prod
+# Build a single Nest application from the monorepo.
+RUN npm run build -- ${APP_NAME}
 
-# =========================
-# Runner Stage
-# =========================
 FROM node:24-alpine AS runner
 
 ARG APP_NAME=travel-booking-app
 ARG PORT=3000
 
 WORKDIR /app
-
 ENV NODE_ENV=production
 ENV APP_NAME=${APP_NAME}
 ENV PORT=${PORT}
 
-# Enable pnpm (không bắt buộc nếu chỉ chạy node)
-RUN corepack enable
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Copy production dependencies từ builder
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy build output
 COPY --from=builder /app/dist ./dist
 
 EXPOSE ${PORT}
 
+# Run the compiled output for the selected app.
 CMD ["sh", "-c", "node dist/apps/${APP_NAME}/main"]
