@@ -1,0 +1,35 @@
+CREATE DATABASE IF NOT EXISTS auth_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS user_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS hotel_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS inventory_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS booking_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS payment_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS review_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS notification_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS search_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
