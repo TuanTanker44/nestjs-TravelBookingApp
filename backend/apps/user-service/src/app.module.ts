@@ -3,6 +3,7 @@ import { UserModule } from './user/user.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
+import { RedisModule } from './redis/redis.module';
 
 config({ path: join(process.cwd(), 'apps/user-service/.env') });
 
@@ -18,6 +19,7 @@ config({ path: join(process.cwd(), 'apps/user-service/.env') });
       autoLoadEntities: true,
       synchronize: true,
     }),
+    RedisModule,
     UserModule,
   ],
 })

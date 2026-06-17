@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { join } from 'path';
 import { config } from 'dotenv';
+import { RedisModule } from './redis/redis.module';
 
 config({ path: join(process.cwd(), 'apps/search-service/.env') });
 
@@ -21,6 +22,7 @@ config({ path: join(process.cwd(), 'apps/search-service/.env') });
       synchronize: true,
     }),
     HttpModule,
+    RedisModule,
   ],
   controllers: [SearchServiceController],
   providers: [SearchServiceService],

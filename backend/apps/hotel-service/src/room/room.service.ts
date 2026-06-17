@@ -8,6 +8,7 @@ import { HotelService } from '../hotel/hotel.service';
 import { RoomStatus } from './enums/room_status.enum';
 import { SearchRoomDto } from './dto/search-room.dto';
 import { RoomAmenityService } from '../room_amenity/room_amenity.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class RoomService {
@@ -16,6 +17,7 @@ export class RoomService {
     private readonly roomRepository: Repository<Room>,
     private readonly hotelService: HotelService,
     private readonly roomAmenityService: RoomAmenityService,
+    private readonly redis: RedisService,
   ) {}
   async create(createRoomDto: CreateRoomDto) {
     const hotel = await this.hotelService.findOne(createRoomDto.hotelId);
@@ -32,15 +34,45 @@ export class RoomService {
         : undefined,
     });
 
-    return this.roomRepository.save(room);
+    const createdRoom = await this.roomRepository.save(room);
+
+    await this.invalidateRoomCache();
+
+    return createdRoom;
   }
 
-  findAll() {
-    return this.roomRepository.find();
+  async findAll() {
+    const key = 'room:list';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const rooms = await this.roomRepository.find();
+
+    await this.redis.set(key, JSON.stringify(rooms), 3600);
+
+    return rooms;
   }
 
-  findOne(id: string) {
-    return this.roomRepository.findOne({ where: { id } });
+  async findOne(id: string) {
+    const key = `room:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const room = await this.roomRepository.findOne({ where: { id } });
+
+    if (room) {
+      await this.redis.set(key, JSON.stringify(room), 3600);
+    }
+
+    return room;
   }
 
   async update(id: string, updateRoomDto: UpdateRoomDto) {
@@ -49,7 +81,7 @@ export class RoomService {
       throw new Error('Room not found');
     }
 
-    return this.roomRepository.update(id, {
+    const result = await this.roomRepository.update(id, {
       ...updateRoomDto,
       type: updateRoomDto.type
         ? (updateRoomDto.type.toUpperCase() as Room['type'])
@@ -58,6 +90,10 @@ export class RoomService {
         ? (updateRoomDto.status.toUpperCase() as Room['status'])
         : undefined,
     });
+
+    await this.invalidateRoomCache();
+
+    return result;
   }
 
   async remove(id: string) {
@@ -65,7 +101,14 @@ export class RoomService {
     if (!room) {
       throw new Error('Room not found');
     }
-    return this.roomRepository.update(id, { status: RoomStatus.UNAVAILABLE });
+
+    const result = await this.roomRepository.update(id, {
+      status: RoomStatus.UNAVAILABLE,
+    });
+
+    await this.invalidateRoomCache();
+
+    return result;
   }
 
   private baseQuery() {
@@ -166,6 +209,14 @@ export class RoomService {
   }
 
   async searchRooms(dto: SearchRoomDto) {
+    const key = `room:search:${this.buildSearchCacheKey(dto)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.baseQuery();
 
     // hotel filter
@@ -206,12 +257,35 @@ export class RoomService {
 
     const [rooms, total] = await query.getManyAndCount();
 
-    return {
+    const payload = {
       data: rooms,
       total,
       page: dto.page,
       limit: dto.limit,
       totalPages: Math.ceil(total / dto.limit),
     };
+
+    await this.redis.set(key, JSON.stringify(payload), 3600);
+
+    return payload;
+  }
+
+  private async invalidateRoomCache() {
+    await this.redis.delPattern('room:*');
+  }
+
+  private buildSearchCacheKey(dto: SearchRoomDto) {
+    const params = new URLSearchParams();
+
+    Object.entries(dto)
+      .filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      )
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+      .forEach(([key, value]) => {
+        params.set(key, Array.isArray(value) ? value.join(',') : String(value));
+      });
+
+    return params.toString();
   }
 }

@@ -9,6 +9,7 @@ import { UserStatus } from './enums/status.enum';
 import { UserRole } from './enums/role.enum';
 import { config } from 'dotenv';
 import { join } from 'path';
+import { RedisService } from '../redis/redis.service';
 
 config({ path: join(process.cwd(), 'apps/user-service/.env') });
 
@@ -17,10 +18,11 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private readonly redis: RedisService,
   ) {}
 
   // Hash the password with bcrypt and a pepper before saving the user
-  create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto) {
     const passwordHash = bcrypt.hashSync(
       createUserDto.password + process.env.PEPPER,
       10,
@@ -29,42 +31,133 @@ export class UserService {
       ...createUserDto,
       passwordHash: passwordHash,
     });
-    return this.userRepository.save(user);
+
+    const createdUser = await this.userRepository.save(user);
+
+    await this.invalidateUserCache();
+
+    return createdUser;
   }
 
-  findAll() {
-    return this.userRepository.find();
+  async findAll() {
+    const key = 'user:list';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const users = await this.userRepository.find();
+
+    await this.redis.set(key, JSON.stringify(users), 3600);
+
+    return users;
   }
 
-  findOne(id: string) {
-    return this.userRepository.findOne({ where: { id } });
+  async findOne(id: string) {
+    const key = `user:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (user) {
+      await this.redis.set(key, JSON.stringify(user), 3600);
+    }
+
+    return user;
   }
 
-  findOneByEmail(email: string) {
-    return this.userRepository.findOne({ where: { email } });
+  async findOneByEmail(email: string) {
+    const key = `user:email:${this.normalizeKey(email)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (user) {
+      await this.redis.set(key, JSON.stringify(user), 3600);
+    }
+
+    return user;
   }
 
-  findOneByPhoneNumber(phoneNumber: string) {
-    return this.userRepository.findOne({ where: { phoneNumber } });
+  async findOneByPhoneNumber(phoneNumber: string) {
+    const key = `user:phone:${this.normalizeKey(phoneNumber)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const user = await this.userRepository.findOne({ where: { phoneNumber } });
+
+    if (user) {
+      await this.redis.set(key, JSON.stringify(user), 3600);
+    }
+
+    return user;
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return this.userRepository.update(id, updateUserDto);
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const result = await this.userRepository.update(id, updateUserDto);
+
+    await this.invalidateUserCache();
+
+    return result;
   }
 
-  updateRole(id: string, role: UserRole) {
-    return this.userRepository.update(id, { role });
+  async updateRole(id: string, role: UserRole) {
+    const result = await this.userRepository.update(id, { role });
+
+    await this.invalidateUserCache();
+
+    return result;
   }
 
-  updateStatus(id: string, status: UserStatus) {
-    return this.userRepository.update(id, { status });
+  async updateStatus(id: string, status: UserStatus) {
+    const result = await this.userRepository.update(id, { status });
+
+    await this.invalidateUserCache();
+
+    return result;
   }
 
-  remove(id: string) {
-    return this.userRepository.update(id, { status: UserStatus.INACTIVE });
+  async remove(id: string) {
+    const result = await this.userRepository.update(id, {
+      status: UserStatus.INACTIVE,
+    });
+
+    await this.invalidateUserCache();
+
+    return result;
   }
 
-  reActivate(id: string) {
-    return this.userRepository.update(id, { status: UserStatus.ACTIVE });
+  async reActivate(id: string) {
+    const result = await this.userRepository.update(id, {
+      status: UserStatus.ACTIVE,
+    });
+
+    await this.invalidateUserCache();
+
+    return result;
+  }
+
+  private normalizeKey(value: string) {
+    return value.trim().toLowerCase().replace(/\s+/g, '');
+  }
+
+  private async invalidateUserCache() {
+    await this.redis.delPattern('user:*');
   }
 }
