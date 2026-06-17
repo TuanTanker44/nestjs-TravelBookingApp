@@ -1,157 +1,196 @@
 "use client";
-
-import api from "@/services/api";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { paymentApi } from "@/services/api";
+import Navbar from "@/components/Navbar";
 import toast from "react-hot-toast";
+
+const METHODS = [
+  { id: "card", label: "Thẻ tín dụng / ghi nợ", icon: "💳", sub: "Visa · Mastercard · JCB" },
+  { id: "momo", label: "Ví MoMo", icon: "🟣", sub: "Thanh toán nhanh qua QR" },
+  { id: "banking", label: "Chuyển khoản ngân hàng", icon: "🏦", sub: "Hơn 40 ngân hàng Việt" },
+  { id: "zalopay", label: "ZaloPay", icon: "🔵", sub: "Ví điện tử ZaloPay" },
+];
 
 function PaymentContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const bookingId = searchParams.get("bookingId") || localStorage.getItem("bookingId");
+  const sp = useSearchParams();
+  const bookingId = sp.get("bookingId") ?? "demo-123";
+  const total = Number(sp.get("total") ?? 0);
 
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardHolder, setCardHolder] = useState("");
+  const [method, setMethod] = useState("card");
+  const [cardNum, setCardNum] = useState("");
+  const [cardName, setCardName] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Format số thẻ: xxxx xxxx xxxx xxxx
-  const formatCardNumber = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(.{4})/g, "$1 ").trim();
+  const fmtCard = (v: string) => v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+  const fmtExp = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 4);
+    return d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d;
   };
 
-  const handlePayment = async () => {
-    if (!cardNumber || !cardHolder || !expiry || !cvv) {
-      toast.error("Vui lòng điền đầy đủ thông tin thẻ");
-      return;
+  const handlePay = async () => {
+    if (method === "card") {
+      if (cardNum.replace(/\s/g, "").length < 16) { toast.error("Số thẻ không hợp lệ"); return; }
+      if (!cardName.trim()) { toast.error("Nhập tên chủ thẻ"); return; }
+      if (expiry.length < 5) { toast.error("Nhập ngày hết hạn"); return; }
+      if (cvv.length < 3) { toast.error("CVV không hợp lệ"); return; }
     }
-    if (cardNumber.replace(/\s/g, "").length < 16) {
-      toast.error("Số thẻ không hợp lệ");
-      return;
-    }
-
     setLoading(true);
     try {
-      await api.post("/payment", {
-        bookingId,
-        amount: 299, // lấy từ booking thực tế
-        cardNumber: cardNumber.replace(/\s/g, ""),
-        cardHolder,
-      });
-
-      localStorage.removeItem("bookingId");
-      toast.success("Thanh toán thành công!");
-      router.push("/success");
-    } catch (err) {
-      console.error(err);
-      // Demo: cho qua nếu API chưa có
-      localStorage.removeItem("bookingId");
-      toast.success("Thanh toán thành công!");
-      router.push("/success");
-    } finally {
-      setLoading(false);
+      await paymentApi.post("/payments", { bookingId, method, amount: total });
+    } catch { /* fallback for demo */ }
+    finally {
+      toast.success("Thanh toán thành công! 🎉");
+      router.push(`/success?bookingId=${bookingId}&total=${total}`);
     }
   };
 
+  const inputCls = "w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 py-10">
-      <div className="w-full max-w-lg rounded-3xl bg-white p-10 shadow-lg">
-        {/* Header */}
-        <button
-          onClick={() => router.back()}
-          className="mb-4 text-sm text-gray-500 hover:text-gray-700"
-        >
-          ← Quay lại
-        </button>
-        <h1 className="mb-2 text-4xl font-bold">Thanh toán</h1>
-        <p className="mb-8 text-sm text-gray-400">
-          🔒 Kết nối bảo mật SSL
-        </p>
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <Navbar />
 
-        {/* Card Preview */}
-        <div className="mb-8 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-xl">
-          <p className="mb-4 text-xl tracking-widest">
-            {cardNumber || "•••• •••• •••• ••••"}
-          </p>
-          <div className="flex justify-between text-sm">
-            <span>{cardHolder || "TÊN CHỦ THẺ"}</span>
-            <span>{expiry || "MM/YY"}</span>
-          </div>
-        </div>
+      <div className="mx-auto max-w-4xl px-6 py-12 pt-28">
+        <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-gold">Bước 2/2</p>
+        <h1 className="font-display mb-8 text-4xl font-bold" style={{ color: "var(--text)" }}>Thanh toán</h1>
 
-        <div className="space-y-4">
-          {/* Card Number */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">
-              Số thẻ
-            </label>
-            <input
-              type="text"
-              placeholder="1234 5678 9012 3456"
-              className="w-full rounded-xl border p-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={cardNumber}
-              onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-              maxLength={19}
-            />
-          </div>
+        <div className="grid gap-8 md:grid-cols-3">
 
-          {/* Card Holder */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">
-              Tên chủ thẻ
-            </label>
-            <input
-              type="text"
-              placeholder="NGUYEN VAN A"
-              className="w-full rounded-xl border p-4 uppercase focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={cardHolder}
-              onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-            />
-          </div>
+          {/* Left – payment form */}
+          <div className="space-y-5 md:col-span-2">
 
-          {/* Expiry + CVV */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">
-                Ngày hết hạn
-              </label>
-              <input
-                type="text"
-                placeholder="MM/YY"
-                className="w-full rounded-xl border p-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                value={expiry}
-                maxLength={5}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, "");
-                  if (val.length > 2) val = val.slice(0, 2) + "/" + val.slice(2, 4);
-                  setExpiry(val);
-                }}
-              />
+            {/* Method selector */}
+            <div className="rounded-2xl p-7" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <h2 className="font-display mb-5 text-xl font-bold" style={{ color: "var(--text)" }}>Phương thức thanh toán</h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {METHODS.map(m => {
+                  const sel = method === m.id;
+                  return (
+                    <div key={m.id} onClick={() => setMethod(m.id)}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl px-4 py-4 transition-all"
+                      style={{
+                        background: sel ? "rgba(201,168,76,0.07)" : "var(--surface2)",
+                        border: sel ? "1.5px solid rgba(201,168,76,0.45)" : "1px solid var(--border)",
+                      }}>
+                      <span className="text-2xl">{m.icon}</span>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{m.label}</p>
+                        <p className="text-xs" style={{ color: "var(--muted)" }}>{m.sub}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">
-                CVV
-              </label>
-              <input
-                type="password"
-                placeholder="•••"
-                className="w-full rounded-xl border p-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                value={cvv}
-                maxLength={3}
-                onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))}
-              />
-            </div>
+
+            {/* Card form */}
+            {method === "card" && (
+              <div className="rounded-2xl p-7" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h2 className="font-display mb-5 text-xl font-bold" style={{ color: "var(--text)" }}>Thông tin thẻ</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Số thẻ</label>
+                    <input type="text" placeholder="0000 0000 0000 0000" className={inputCls}
+                      value={cardNum} onChange={e => setCardNum(fmtCard(e.target.value))} inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Tên chủ thẻ</label>
+                    <input type="text" placeholder="NGUYEN VAN A" className={inputCls}
+                      value={cardName} onChange={e => setCardName(e.target.value.toUpperCase())} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Ngày hết hạn</label>
+                      <input type="text" placeholder="MM/YY" className={inputCls}
+                        value={expiry} onChange={e => setExpiry(fmtExp(e.target.value))} maxLength={5} inputMode="numeric" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>CVV</label>
+                      <input type="password" placeholder="•••" className={inputCls}
+                        value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview card */}
+                {cardNum && (
+                  <div className="mt-6 rounded-2xl p-5 relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, #1a1508 0%, #3d2f00 50%, #1a1508 100%)", border: "1px solid rgba(201,168,76,0.35)" }}>
+                    <div className="absolute top-3 right-4 text-gold opacity-20 text-6xl font-display">✦</div>
+                    <p className="text-xs font-bold tracking-widest text-gold mb-4">TravelBook Card</p>
+                    <p className="font-mono text-lg tracking-[0.22em] mb-3" style={{ color: "var(--text)" }}>
+                      {cardNum || "•••• •••• •••• ••••"}
+                    </p>
+                    <div className="flex justify-between text-xs" style={{ color: "rgba(240,237,232,0.5)" }}>
+                      <span>{cardName || "TÊN CHỦ THẺ"}</span>
+                      <span>{expiry || "MM/YY"}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* QR for Momo/ZaloPay */}
+            {(method === "momo" || method === "zalopay") && (
+              <div className="rounded-2xl p-7 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div className="mx-auto mb-4 flex h-40 w-40 items-center justify-center rounded-2xl text-6xl"
+                  style={{ background: "var(--surface2)", border: "1px dashed var(--border)" }}>
+                  {method === "momo" ? "🟣" : "🔵"}
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Quét mã QR để thanh toán</p>
+                <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>Mở {method === "momo" ? "MoMo" : "ZaloPay"} → Quét mã → Xác nhận</p>
+              </div>
+            )}
+
+            {/* Banking info */}
+            {method === "banking" && (
+              <div className="rounded-2xl p-7" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <h2 className="font-display mb-4 text-xl font-bold" style={{ color: "var(--text)" }}>Thông tin chuyển khoản</h2>
+                {[
+                  ["Ngân hàng", "Vietcombank"],
+                  ["Số tài khoản", "0123 4567 8901"],
+                  ["Chủ tài khoản", "TRAVELBOOK VIETNAM"],
+                  ["Nội dung CK", bookingId],
+                  ["Số tiền", `$${total} (theo tỷ giá ngân hàng)`],
+                ].map(([l, v]) => (
+                  <div key={l} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <span className="text-sm" style={{ color: "var(--muted)" }}>{l}</span>
+                    <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <button
-            onClick={handlePayment}
-            disabled={loading}
-            className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700 disabled:opacity-50 transition"
-          >
-            {loading ? "Đang xử lý..." : "💳 Thanh toán ngay"}
-          </button>
+          {/* Right summary */}
+          <div>
+            <div className="sticky top-24 rounded-2xl p-7" style={{ background: "var(--surface)", border: "1px solid rgba(201,168,76,0.25)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--muted)" }}>Tóm tắt đơn hàng</p>
+              <div className="space-y-2 text-sm mb-5">
+                <div className="flex justify-between" style={{ color: "var(--muted)" }}>
+                  <span>Mã đặt phòng</span>
+                  <span className="font-mono text-xs" style={{ color: "var(--text)" }}>{bookingId.slice(0, 12)}...</span>
+                </div>
+                <div className="h-px" style={{ background: "var(--border)" }} />
+                <div className="flex justify-between items-baseline">
+                  <span className="font-bold" style={{ color: "var(--text)" }}>Tổng thanh toán</span>
+                  <span className="font-display text-3xl font-bold text-gold">${total}</span>
+                </div>
+              </div>
+              <button onClick={handlePay} disabled={loading}
+                className="btn-gold w-full rounded-xl py-4 text-sm font-bold disabled:opacity-50">
+                {loading ? "Đang xử lý..." : `Thanh toán $${total} →`}
+              </button>
+              <div className="mt-4 space-y-1.5 text-xs text-center" style={{ color: "var(--muted)" }}>
+                <p>🔒 Mã hóa SSL 256-bit</p>
+                <p>✦ Xác nhận ngay sau thanh toán</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -159,9 +198,5 @@ function PaymentContent() {
 }
 
 export default function PaymentPage() {
-  return (
-    <Suspense fallback={<div className="p-10">Đang tải...</div>}>
-      <PaymentContent />
-    </Suspense>
-  );
+  return <Suspense><PaymentContent /></Suspense>;
 }
