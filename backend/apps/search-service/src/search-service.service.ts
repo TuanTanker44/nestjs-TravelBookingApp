@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { RedisService } from './redis/redis.service';
 
 import { SearchRoomDto } from './dto/search-room.dto';
 import { firstValueFrom } from 'rxjs/internal/firstValueFrom';
@@ -31,9 +32,29 @@ export interface SearchResult {
 
 @Injectable()
 export class SearchServiceService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly redis: RedisService,
+  ) {}
   private readonly hotelServiceUrl =
     process.env.HOTEL_SERVICE_URL ?? 'http://localhost:3004';
+
+  private buildCacheKey(prefix: string, value: string) {
+    return `${prefix}:${value.trim().toLowerCase().replace(/\s+/g, '')}`;
+  }
+
+  private buildQueryCacheKey(prefix: string, query: SearchRoomDto | SearchDto) {
+    const params = new URLSearchParams();
+
+    Object.entries(query)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+      .forEach(([key, value]) => {
+        params.set(key, Array.isArray(value) ? value.join(',') : String(value));
+      });
+
+    return `${prefix}:${params.toString()}`;
+  }
 
   private mapRoom(room: Partial<SearchResultItem>): SearchResultItem {
     return {
@@ -52,6 +73,14 @@ export class SearchServiceService {
   }
 
   private async fetchRoomCatalog(): Promise<SearchResultItem[]> {
+    const key = 'search:room-catalog';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     // const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
     const roomEndpoint = `${this.hotelServiceUrl}/room`;
 
@@ -88,10 +117,24 @@ export class SearchServiceService {
         ? (payload as { data: unknown[] }).data
         : [];
 
-    return rooms.map((room) => this.mapRoom(room as Partial<SearchResultItem>));
+    const mappedRooms = rooms.map((room) =>
+      this.mapRoom(room as Partial<SearchResultItem>),
+    );
+
+    await this.redis.set(key, JSON.stringify(mappedRooms), 3600);
+
+    return mappedRooms;
   }
 
   async searchRooms(query: SearchRoomDto): Promise<SearchResult> {
+    const key = this.buildQueryCacheKey('search:rooms', query);
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const checkIn = new Date(query.checkIn);
     const checkOut = new Date(query.checkOut);
 
@@ -154,16 +197,28 @@ export class SearchServiceService {
     const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
 
-    return {
+    const result = {
       query,
       total: sortedMatches.length,
       items: sortedMatches.slice(offset, offset + limit),
     };
+
+    await this.redis.set(key, JSON.stringify(result), 3600);
+
+    return result;
   }
   // =========================
   // SEARCH HOTEL
   // =========================
   async searchHotels(keyword?: string) {
+    const key = this.buildCacheKey('search:hotel', keyword ?? '');
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const response = await firstValueFrom(
       this.httpService.get('http://hotel-service:3001/hotels/search', {
         params: {
@@ -172,13 +227,25 @@ export class SearchServiceService {
       }),
     );
 
-    return response.data as SearchDto;
+    const result = response.data as SearchDto;
+
+    await this.redis.set(key, JSON.stringify(result), 3600);
+
+    return result;
   }
 
   // =========================
   // SEARCH ROOM
   // =========================
   async searchRoomsByKeyword(searchDto: SearchDto) {
+    const key = this.buildQueryCacheKey('search:room', searchDto);
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const response = await firstValueFrom(
       this.httpService.get('http://hotel-service:3001/rooms/search', {
         params: {
@@ -188,6 +255,10 @@ export class SearchServiceService {
       }),
     );
 
-    return response.data as SearchDto;
+    const result = response.data as SearchDto;
+
+    await this.redis.set(key, JSON.stringify(result), 3600);
+
+    return result;
   }
 }

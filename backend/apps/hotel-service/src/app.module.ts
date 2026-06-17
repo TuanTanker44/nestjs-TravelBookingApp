@@ -7,11 +7,13 @@ import { HotelModule } from './hotel/hotel.module';
 import { RoomModule } from './room/room.module';
 import { AmentityModule } from './amenity/amenity.module';
 import { RoomAmenityModule } from './room_amenity/room_amenity.module';
+import { RedisModule } from './redis/redis.module';
 
 config({ path: join(process.cwd(), 'apps/hotel-service/.env') });
 
 @Module({
   imports: [
+    RedisModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

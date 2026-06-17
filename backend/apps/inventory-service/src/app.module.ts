@@ -4,11 +4,13 @@ import { config } from 'dotenv';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RoomInventoryModule } from './room_inventory/room_inventory.module';
+import { RedisModule } from './redis/redis.module';
 
 config({ path: join(process.cwd(), 'apps/inventory-service/.env') });
 
 @Module({
   imports: [
+    RedisModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

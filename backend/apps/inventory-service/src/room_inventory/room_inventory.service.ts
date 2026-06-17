@@ -7,6 +7,7 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Between, DataSource, Repository } from 'typeorm';
 
 import { RoomInventory } from './entities/room_inventory.entity';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class RoomInventoryService {
@@ -15,6 +16,7 @@ export class RoomInventoryService {
     private readonly inventoryRepository: Repository<RoomInventory>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly redis: RedisService,
   ) {}
 
   async generateInventory(
@@ -54,7 +56,11 @@ export class RoomInventoryService {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    return await this.inventoryRepository.save(inventories);
+    const createdInventories = await this.inventoryRepository.save(inventories);
+
+    await this.invalidateInventoryCache();
+
+    return createdInventories;
   }
 
   async checkAvailability(
@@ -62,6 +68,14 @@ export class RoomInventoryService {
     checkIn: Date,
     checkOut: Date,
   ): Promise<boolean> {
+    const key = `inventory:availability:${roomId}:${this.normalizeDate(checkIn)}:${this.normalizeDate(checkOut)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const inventories = await this.inventoryRepository.find({
       where: {
         roomId,
@@ -73,12 +87,18 @@ export class RoomInventoryService {
     });
 
     if (!inventories.length) {
+      await this.redis.set(key, JSON.stringify(false), 3600);
+
       return false;
     }
 
-    return inventories.every(
+    const available = inventories.every(
       (inventory) => inventory.availableRooms > 0 && !inventory.isClosed,
     );
+
+    await this.redis.set(key, JSON.stringify(available), 3600);
+
+    return available;
   }
 
   async lockInventory(
@@ -129,6 +149,8 @@ export class RoomInventoryService {
       await queryRunner.manager.save(inventories);
 
       await queryRunner.commitTransaction();
+
+      await this.invalidateInventoryCache();
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
@@ -184,6 +206,8 @@ export class RoomInventoryService {
       await queryRunner.manager.save(inventories);
 
       await queryRunner.commitTransaction();
+
+      await this.invalidateInventoryCache();
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
@@ -239,6 +263,8 @@ export class RoomInventoryService {
       await queryRunner.manager.save(inventories);
 
       await queryRunner.commitTransaction();
+
+      await this.invalidateInventoryCache();
     } catch (error) {
       await queryRunner.rollbackTransaction();
 
@@ -267,6 +293,8 @@ export class RoomInventoryService {
         isClosed: true,
       },
     );
+
+    await this.invalidateInventoryCache();
   }
 
   async resumeSell(
@@ -284,6 +312,8 @@ export class RoomInventoryService {
       },
       { isClosed: false },
     );
+
+    await this.invalidateInventoryCache();
   }
 
   async updateStock(
@@ -318,18 +348,42 @@ export class RoomInventoryService {
 
     inventory.availableRooms = totalRooms - usedRooms;
 
-    return await this.inventoryRepository.save(inventory);
+    const updatedInventory = await this.inventoryRepository.save(inventory);
+
+    await this.invalidateInventoryCache();
+
+    return updatedInventory;
   }
 
   async findAll(): Promise<RoomInventory[]> {
-    return await this.inventoryRepository.find({
+    const key = 'inventory:list';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const inventories = await this.inventoryRepository.find({
       order: {
         inventoryDate: 'ASC',
       },
     });
+
+    await this.redis.set(key, JSON.stringify(inventories), 3600);
+
+    return inventories;
   }
 
   async findById(id: string): Promise<RoomInventory> {
+    const key = `inventory:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const inventory = await this.inventoryRepository.findOne({
       where: { id },
     });
@@ -338,6 +392,16 @@ export class RoomInventoryService {
       throw new NotFoundException('Inventory not found');
     }
 
+    await this.redis.set(key, JSON.stringify(inventory), 3600);
+
     return inventory;
+  }
+
+  private normalizeDate(date: Date) {
+    return date.toISOString().split('T')[0];
+  }
+
+  private async invalidateInventoryCache() {
+    await this.redis.delPattern('inventory:*');
   }
 }

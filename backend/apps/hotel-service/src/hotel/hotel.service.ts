@@ -9,12 +9,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
 import { Hotel } from './entities/hotel.entity';
 import { SearchHotelDto } from './dto/search-hotel.dto';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class HotelService {
   constructor(
     @InjectRepository(Hotel)
     private readonly hotelRepository: Repository<Hotel>,
+    private readonly redis: RedisService,
   ) {}
 
   async create(createHotelDto: CreateHotelDto) {
@@ -38,22 +40,57 @@ export class HotelService {
 
     const newHotel = await this.hotelRepository.save(hotel);
 
+    await this.invalidateHotelCache();
+
     return newHotel;
   }
 
-  findAll() {
-    return this.hotelRepository.find({
+  async findAll() {
+    const key = 'hotel:list';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const hotels = await this.hotelRepository.find({
       where: { status: 'ACTIVE' },
     });
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
-  findOne(id: string) {
-    return this.hotelRepository.findOne({
+  async findOne(id: string) {
+    const key = `hotel:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+    const hotel = await this.hotelRepository.findOne({
       where: { id, status: 'ACTIVE' },
     });
+
+    if (hotel) {
+      await this.redis.set(key, JSON.stringify(hotel), 3600);
+    }
+
+    return hotel;
   }
 
   async findByName(name: string) {
+    const key = `hotel:name:${this.normalizeKeyword(name)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.hotelRepository.createQueryBuilder('hotel');
 
     query.where('hotel.status = :status', {
@@ -62,10 +99,24 @@ export class HotelService {
 
     this.applyNormalizedLike(query, 'name', name);
 
-    return query.getOne();
+    const hotel = await query.getOne();
+
+    if (hotel) {
+      await this.redis.set(key, JSON.stringify(hotel), 3600);
+    }
+
+    return hotel;
   }
 
   async findByDescription(keyword: string) {
+    const key = `hotel:description:${this.normalizeKeyword(keyword)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.hotelRepository.createQueryBuilder('hotel');
 
     query.where('hotel.status = :status', {
@@ -74,10 +125,22 @@ export class HotelService {
 
     this.applyNormalizedLike(query, 'description', keyword);
 
-    return query.getMany();
+    const hotels = await query.getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
   async findByAddress(keyword: string) {
+    const key = `hotel:address:${this.normalizeKeyword(keyword)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.hotelRepository.createQueryBuilder('hotel');
 
     query.where('hotel.status = :status', {
@@ -86,10 +149,22 @@ export class HotelService {
 
     this.applyNormalizedLike(query, 'address', keyword);
 
-    return query.getMany();
+    const hotels = await query.getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
   async findByCity(city: string) {
+    const key = `hotel:city:${this.normalizeKeyword(city)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.hotelRepository.createQueryBuilder('hotel');
 
     query.where('hotel.status = :status', {
@@ -100,10 +175,22 @@ export class HotelService {
 
     query.orderBy('hotel.rating_avg', 'DESC');
 
-    return query.getMany();
+    const hotels = await query.getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
   async findByCountry(country: string) {
+    const key = `hotel:country:${this.normalizeKeyword(country)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.hotelRepository.createQueryBuilder('hotel');
 
     query.where('hotel.status = :status', {
@@ -112,20 +199,44 @@ export class HotelService {
 
     this.applyNormalizedLike(query, 'country', country);
 
-    return query.getMany();
+    const hotels = await query.getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
-  findByRating(rating: number) {
-    return this.hotelRepository.find({
+  async findByRating(rating: number) {
+    const key = `hotel:rating:${rating}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const hotels = await this.hotelRepository.find({
       where: {
         status: 'ACTIVE',
         rating_avg: MoreThanOrEqual(rating),
       },
     });
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
-  findByPrice(price: number) {
-    return this.hotelRepository
+  async findByPrice(price: number) {
+    const key = `hotel:price:${price}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const hotels = await this.hotelRepository
       .createQueryBuilder('hotel')
       .where('hotel.status = :status', { status: 'ACTIVE' })
       .andWhere('(hotel.price_min IS NULL OR hotel.price_min <= :price)', {
@@ -135,6 +246,10 @@ export class HotelService {
         price,
       })
       .getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
   }
 
   async update(id: string, updateHotelDto: UpdateHotelDto) {
@@ -158,7 +273,11 @@ export class HotelService {
 
     this.hotelRepository.merge(hotel, updateHotelDto);
 
-    return this.hotelRepository.save(hotel);
+    const updatedHotel = await this.hotelRepository.save(hotel);
+
+    await this.invalidateHotelCache();
+
+    return updatedHotel;
   }
 
   async remove(id: string) {
@@ -172,7 +291,11 @@ export class HotelService {
 
     hotel.status = 'INACTIVE';
 
-    return this.hotelRepository.save(hotel);
+    const removedHotel = await this.hotelRepository.save(hotel);
+
+    await this.invalidateHotelCache();
+
+    return removedHotel;
   }
 
   // Search and filter implementation
@@ -328,6 +451,14 @@ export class HotelService {
   }
 
   async search(dto: SearchHotelDto) {
+    const key = `hotel:search:${this.buildSearchCacheKey(dto)}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const query = this.baseQuery();
 
     if (dto.keyword) {
@@ -346,6 +477,29 @@ export class HotelService {
 
     this.applyPagination(query, dto);
 
-    return query.getMany();
+    const hotels = await query.getMany();
+
+    await this.redis.set(key, JSON.stringify(hotels), 3600);
+
+    return hotels;
+  }
+
+  private async invalidateHotelCache() {
+    await this.redis.delPattern('hotel:*');
+  }
+
+  private buildSearchCacheKey(dto: SearchHotelDto) {
+    const params = new URLSearchParams();
+
+    Object.entries(dto)
+      .filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      )
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+      .forEach(([key, value]) => {
+        params.set(key, String(value));
+      });
+
+    return params.toString();
   }
 }
