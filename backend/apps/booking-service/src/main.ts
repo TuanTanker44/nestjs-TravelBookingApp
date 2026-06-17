@@ -4,5 +4,6 @@ import { BookingServiceModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(BookingServiceModule);
   await app.listen(process.env.port ?? 3000);
+  console.log(`Booking Service is running on port ${process.env.port ?? 3000}`);
 }
 bootstrap();
