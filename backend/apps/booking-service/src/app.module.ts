@@ -6,6 +6,8 @@ import { BookingModule } from './booking/booking.module';
 import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
 import { join } from 'path';
 import { config } from 'dotenv';
+import { BookingHistoryModule } from './booking-history/booking-history.module';
+import { RedisModule } from './redis/redis.module';
 
 config({ path: join(process.cwd(), 'apps/booking-service/.env') });
 
@@ -25,6 +27,8 @@ config({ path: join(process.cwd(), 'apps/booking-service/.env') });
     BookingModule,
     BookingRoomModule,
     PaymentIntegrationModule,
+    BookingHistoryModule,
+    RedisModule,
   ],
 })
 export class BookingServiceModule {}

@@ -8,9 +8,7 @@ export class PaymentServiceController {
 
   @Get()
   getHello() {
-    return {
-      message: 'Payment service is running',
-    };
+    return this.paymentServiceService.getHello();
   }
 
   @Post('payments/session')
@@ -49,10 +47,7 @@ export class PaymentServiceController {
   }
 
   @Post('payments/:id/refund')
-  refundPayment(
-    @Param('id') id: string,
-    @Body() body: { reason: string },
-  ) {
+  refundPayment(@Param('id') id: string, @Body() body: { reason: string }) {
     return this.paymentServiceService.refundPayment(id, body.reason);
   }
 }

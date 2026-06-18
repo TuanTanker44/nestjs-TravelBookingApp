@@ -12,6 +12,7 @@ import { BookingPaymentStatus } from './enums/payment-status.enum';
 import { BookingStatus } from './enums/status.enum';
 import { Cron } from '@nestjs/schedule/dist/decorators/cron.decorator';
 import { BookingRoom } from '../booking_room/entities/booking_room.entity';
+import { RedisService } from '../redis/redis.service';
 
 interface IBookingService {
   createBooking(dto: CreateBookingDto): Promise<Booking>;
@@ -36,6 +37,7 @@ export class BookingService implements IBookingService {
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
+    private readonly redis: RedisService,
   ) {}
 
   async createBooking(dto: CreateBookingDto): Promise<Booking> {
@@ -59,13 +61,15 @@ export class BookingService implements IBookingService {
       checkIn,
       checkOut,
     );
-    return this.bookingRepository.save({
+    const booking = await this.bookingRepository.save({
       userId: dto.userId,
       bookingRooms: dto.bookingRooms,
       checkInDate: checkIn,
       checkOutDate: checkOut,
       totalAmount,
     });
+
+    return booking;
   }
 
   async changeBookingStatus(
@@ -78,6 +82,7 @@ export class BookingService implements IBookingService {
       (status === BookingStatus.CONFIRMED || status === BookingStatus.CANCELLED)
     ) {
       await this.bookingRepository.update(booking.id, { status });
+      await this.invalidateBookingCache();
       return `Booking ${booking.id} status updated to ${status}`;
     }
     if (
@@ -85,6 +90,7 @@ export class BookingService implements IBookingService {
       (status === BookingStatus.COMPLETED || status === BookingStatus.CANCELLED)
     ) {
       await this.bookingRepository.update(booking.id, { status });
+      await this.invalidateBookingCache();
       return `Booking ${booking.id} status updated to ${status}`;
     }
     if (
@@ -123,6 +129,7 @@ export class BookingService implements IBookingService {
       paymentStatus,
       status: booking.status,
     });
+    await this.invalidateBookingCache();
     return `Booking ${booking.id} payment status updated to ${paymentStatus}`;
   }
 
@@ -169,10 +176,21 @@ export class BookingService implements IBookingService {
   }
 
   async getBookingById(id: string) {
+    const key = `booking:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const booking = await this.bookingRepository.findOneBy({ id });
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+
+    await this.redis.set(key, JSON.stringify(booking), 3600);
+
     return booking;
   }
 
@@ -208,6 +226,7 @@ export class BookingService implements IBookingService {
       checkOutDate: checkOut,
       totalAmount: dto.totalAmount,
     });
+    await this.invalidateBookingCache();
     return `Booking ${booking.id} has been updated`;
   }
 
@@ -216,6 +235,7 @@ export class BookingService implements IBookingService {
     await this.bookingRepository.update(booking.id, {
       status: BookingStatus.CANCELLED,
     });
+    await this.invalidateBookingCache();
     return `Booking ${booking.id} has been deleted`;
   }
 
@@ -281,5 +301,9 @@ export class BookingService implements IBookingService {
       (total, room) => total + room.pricePerNight * room.quantity * nights,
       0,
     );
+  }
+
+  private async invalidateBookingCache() {
+    await this.redis.delPattern('booking:*');
   }
 }
