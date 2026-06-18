@@ -47,7 +47,9 @@ export class SearchServiceService {
     const params = new URLSearchParams();
 
     Object.entries(query)
-      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      )
       .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
       .forEach(([key, value]) => {
         params.set(key, Array.isArray(value) ? value.join(',') : String(value));
