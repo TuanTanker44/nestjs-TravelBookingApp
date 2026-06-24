@@ -68,7 +68,7 @@ export class BookingHistoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingHistory[];
     }
 
     const histories = await this.historyRepository.find({
@@ -93,7 +93,7 @@ export class BookingHistoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingHistory[];
     }
 
     const histories = await this.historyRepository.find({
@@ -120,7 +120,7 @@ export class BookingHistoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingHistory[];
     }
 
     const histories = await this.historyRepository.find({
@@ -147,7 +147,7 @@ export class BookingHistoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as { bookingId: string; status: BookingStatus };
     }
 
     const history = await this.historyRepository.findOne({

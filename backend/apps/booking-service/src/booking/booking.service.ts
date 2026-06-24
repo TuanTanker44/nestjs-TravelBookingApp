@@ -175,13 +175,13 @@ export class BookingService implements IBookingService {
     return `Booking ${booking.id} has been cancelled`;
   }
 
-  async getBookingById(id: string) {
+  async getBookingById(id: string): Promise<Booking> {
     const key = `booking:${id}`;
 
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Booking;
     }
 
     const booking = await this.bookingRepository.findOneBy({ id });

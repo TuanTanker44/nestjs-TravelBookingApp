@@ -21,7 +21,7 @@ config({ path: join(process.cwd(), 'apps/booking-service/.env') });
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME ?? 'booking_db',
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
     }),
     RoomReservationModule,
     BookingModule,

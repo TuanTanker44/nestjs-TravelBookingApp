@@ -80,7 +80,7 @@ export class SearchServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as SearchResultItem[];
     }
 
     // const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
@@ -134,7 +134,7 @@ export class SearchServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as SearchResult;
     }
 
     const checkIn = new Date(query.checkIn);
@@ -218,7 +218,7 @@ export class SearchServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as SearchResult;
     }
 
     const response = await firstValueFrom(
@@ -229,7 +229,7 @@ export class SearchServiceService {
       }),
     );
 
-    const result = response.data as SearchDto;
+    const result = response.data as SearchResult;
 
     await this.redis.set(key, JSON.stringify(result), 3600);
 
@@ -245,7 +245,7 @@ export class SearchServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as SearchResult;
     }
 
     const response = await firstValueFrom(
@@ -257,7 +257,7 @@ export class SearchServiceService {
       }),
     );
 
-    const result = response.data as SearchDto;
+    const result = response.data as SearchResult;
 
     await this.redis.set(key, JSON.stringify(result), 3600);
 

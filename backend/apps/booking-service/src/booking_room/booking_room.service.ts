@@ -50,7 +50,7 @@ export class BookingRoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingRoom[];
     }
 
     const bookingRooms = await this.bookingRoomRepository.find({
@@ -68,7 +68,7 @@ export class BookingRoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingRoom;
     }
 
     const bookingRoom = await this.bookingRoomRepository.findOne({
@@ -91,7 +91,7 @@ export class BookingRoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as BookingRoom[];
     }
 
     const bookingRooms = await this.bookingRoomRepository.find({

@@ -47,7 +47,7 @@ export class RoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Room[];
     }
 
     const rooms = await this.roomRepository.find();
@@ -63,7 +63,7 @@ export class RoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Room[];
     }
 
     const room = await this.roomRepository.findOne({ where: { id } });
@@ -214,7 +214,7 @@ export class RoomService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Room[];
     }
 
     const query = this.baseQuery();

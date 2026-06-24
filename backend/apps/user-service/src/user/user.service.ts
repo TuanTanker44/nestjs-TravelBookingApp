@@ -45,7 +45,7 @@ export class UserService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as User[];
     }
 
     const users = await this.userRepository.find();
@@ -61,7 +61,7 @@ export class UserService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as User;
     }
 
     const user = await this.userRepository.findOne({ where: { id } });
@@ -79,7 +79,7 @@ export class UserService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as User;
     }
 
     const user = await this.userRepository.findOne({ where: { email } });
@@ -97,7 +97,7 @@ export class UserService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as User;
     }
 
     const user = await this.userRepository.findOne({ where: { phoneNumber } });

@@ -34,7 +34,7 @@ export class AmentityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Amenity[];
     }
 
     const amenities = await this.amenityRepository.find();
@@ -50,7 +50,7 @@ export class AmentityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Amenity;
     }
 
     const amenity = await this.amenityRepository.findOne({ where: { id } });
@@ -97,7 +97,7 @@ export class AmentityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Amenity[];
     }
 
     const amenities = await this.amenityRepository.find({

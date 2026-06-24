@@ -51,7 +51,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const hotels = await this.hotelRepository.find({
@@ -69,7 +69,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel;
     }
     const hotel = await this.hotelRepository.findOne({
       where: { id, status: 'ACTIVE' },
@@ -88,7 +88,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel;
     }
 
     const query = this.hotelRepository.createQueryBuilder('hotel');
@@ -114,7 +114,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const query = this.hotelRepository.createQueryBuilder('hotel');
@@ -138,7 +138,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const query = this.hotelRepository.createQueryBuilder('hotel');
@@ -162,7 +162,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const query = this.hotelRepository.createQueryBuilder('hotel');
@@ -188,7 +188,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const query = this.hotelRepository.createQueryBuilder('hotel');
@@ -212,7 +212,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const hotels = await this.hotelRepository.find({
@@ -233,7 +233,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const hotels = await this.hotelRepository
@@ -456,7 +456,7 @@ export class HotelService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Hotel[];
     }
 
     const query = this.baseQuery();

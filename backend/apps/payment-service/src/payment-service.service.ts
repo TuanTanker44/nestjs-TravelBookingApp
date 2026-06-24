@@ -16,7 +16,6 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 import { PaymentStatus } from './enums/status.enum';
 
-import { PaymentProvider } from './enums/provider.enum';
 import { RedisService } from './redis/redis.service';
 
 @Injectable()
@@ -26,24 +25,6 @@ export class PaymentServiceService {
     private paymentRepository: Repository<Payment>,
     private readonly redis: RedisService,
   ) {}
-
-  async getHello() {
-    const key = 'payment:hello';
-
-    const cached = await this.redis.get(key);
-
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
-    const payload = {
-      message: 'Payment service is running',
-    };
-
-    await this.redis.set(key, JSON.stringify(payload), 3600);
-
-    return payload;
-  }
 
   /**
    * tạo payment
@@ -87,7 +68,7 @@ export class PaymentServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Payment[];
     }
 
     const payments = await this.paymentRepository.find({
@@ -104,13 +85,13 @@ export class PaymentServiceService {
   /**
    * lấy payment detail
    */
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Payment> {
     const key = `payment:${id}`;
 
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Payment;
     }
 
     const payment = await this.paymentRepository.findOne({
@@ -141,7 +122,7 @@ export class PaymentServiceService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Payment[];
     }
 
     const payments = await this.paymentRepository.find({
@@ -186,7 +167,11 @@ export class PaymentServiceService {
    *
    * PROCESSING -> SUCCESS
    */
-  async success(id: string, transactionId?: string, metadata?: any) {
+  async confirm(
+    id: string,
+    transactionId?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<Payment> {
     const payment = await this.findOne(id);
 
     if (payment.status !== PaymentStatus.PROCESSING) {
@@ -255,7 +240,7 @@ export class PaymentServiceService {
    *
    * SUCCESS -> REFUNDED
    */
-  async refund(id: string) {
+  async refund(id: string, reason?: string) {
     const payment = await this.findOne(id);
 
     if (payment.status !== PaymentStatus.SUCCESS) {
@@ -263,6 +248,10 @@ export class PaymentServiceService {
     }
 
     payment.status = PaymentStatus.REFUNDED;
+
+    payment.metadata = {
+      reason,
+    };
 
     const updatedPayment = await this.paymentRepository.save(payment);
 

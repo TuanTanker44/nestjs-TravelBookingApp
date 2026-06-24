@@ -33,7 +33,7 @@ export class RoomAmenityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomAmenity[];
     }
 
     const roomAmenities = await this.roomAmenityRepository.find({
@@ -51,7 +51,7 @@ export class RoomAmenityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomAmenity;
     }
 
     const roomAmenity = await this.roomAmenityRepository.findOne({
@@ -73,7 +73,7 @@ export class RoomAmenityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomAmenity[];
     }
 
     const roomAmenities = await this.roomAmenityRepository.find({
@@ -92,7 +92,7 @@ export class RoomAmenityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomAmenity[];
     }
 
     const roomAmenities = await this.roomAmenityRepository.find({
@@ -159,7 +159,7 @@ export class RoomAmenityService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomAmenity[];
     }
 
     if (!codes?.length) {

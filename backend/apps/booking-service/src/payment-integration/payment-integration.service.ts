@@ -14,7 +14,6 @@ import { UpdatePaymentIntegrationDto } from './dto/update-payment-integration.dt
 
 import { PaymentStatus } from './enums/payment-status.enum';
 
-import { PaymentProvider } from './enums/payment-provider.enum';
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
@@ -59,7 +58,7 @@ export class PaymentIntegrationService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as PaymentIntegration[];
     }
 
     const payments = await this.paymentRepository.find();
@@ -78,7 +77,7 @@ export class PaymentIntegrationService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as PaymentIntegration;
     }
 
     const payment = await this.paymentRepository.findOne({
@@ -105,7 +104,7 @@ export class PaymentIntegrationService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as PaymentIntegration[];
     }
 
     const payments = await this.paymentRepository.find({
@@ -127,7 +126,7 @@ export class PaymentIntegrationService {
   async handleCallback(
     transactionId: string,
     status: PaymentStatus,
-    gatewayResponse?: any,
+    gatewayResponse?: Record<string, any>,
   ) {
     const payment = await this.paymentRepository.findOne({
       where: {
@@ -160,14 +159,13 @@ export class PaymentIntegrationService {
    */
   async updateTransaction(
     id: string,
-    transactionId: string,
-    paymentUrl?: string,
+    UpdatePaymentIntegrationDto: UpdatePaymentIntegrationDto,
   ) {
     const payment = await this.findOne(id);
 
-    payment.transactionId = transactionId;
+    payment.transactionId = UpdatePaymentIntegrationDto.transactionId;
 
-    payment.paymentUrl = paymentUrl;
+    payment.paymentUrl = UpdatePaymentIntegrationDto.paymentUrl;
 
     payment.status = PaymentStatus.PROCESSING;
 
