@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
@@ -45,16 +46,33 @@ export class AuthServiceService {
     const user = await this.userClient.findByEmail(dto.email);
 
     if (!user) {
+      throw new UnauthorizedException('No user found with the provided email');
+    }
+
+    if (!user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const matched = await bcrypt.compare(
-      dto.password + process.env.PEPPER,
+    const pepper = process.env.PEPPER;
+
+    if (!pepper) {
+      throw new InternalServerErrorException('Auth configuration is invalid');
+    }
+
+    const matchedWithPepper = await bcrypt.compare(
+      dto.password + pepper,
       user.passwordHash,
     );
 
+    // pepper = null thì so sánh với hash cũ
+    const matchedLegacy =
+      !matchedWithPepper &&
+      (await bcrypt.compare(dto.password, user.passwordHash));
+
+    const matched = matchedWithPepper || matchedLegacy;
+
     if (!matched) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Wrong password');
     }
 
     return user;
@@ -72,15 +90,10 @@ export class AuthServiceService {
       throw new BadRequestException('Email already exists');
     }
 
-    const passwordHash = await bcrypt.hash(
-      dto.password + process.env.PEPPER,
-      10,
-    );
-
     const user = await this.userClient.createUser({
       email: dto.email,
-      passwordHash,
-      name: dto.fullName,
+      password: dto.password,
+      fullName: dto.fullName,
       phoneNumber: dto.phoneNumber,
       avatarUrl: dto.avatarUrl,
     });

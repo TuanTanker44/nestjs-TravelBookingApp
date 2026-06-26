@@ -6,6 +6,10 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { JwtModule } from '@nestjs/jwt/dist/jwt.module';
 import { UserClient } from './clients/user.client';
 import { HttpModule } from '@nestjs/axios/dist/http.module';
+import { join } from 'path';
+import { config } from 'dotenv';
+
+config({ path: join(process.cwd(), 'apps/auth-service/.env') });
 
 @Module({
   imports: [

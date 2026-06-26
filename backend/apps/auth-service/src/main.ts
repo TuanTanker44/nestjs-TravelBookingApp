@@ -6,4 +6,7 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Auth service is running on port ${process.env.PORT ?? 3000}`);
 }
-bootstrap();
+void bootstrap().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

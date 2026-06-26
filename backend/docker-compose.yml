@@ -73,6 +73,9 @@ services:
       args:
         APP_NAME: auth-service
 
+    env_file:
+      - ./apps/auth-service/.env
+
     environment:
       <<: *nest-env
       PORT: 3001
@@ -238,6 +241,9 @@ services:
       <<: *nest-build
       args:
         APP_NAME: user-service
+
+    env_file:
+      - ./apps/user-service/.env
 
     environment:
       <<: *nest-env

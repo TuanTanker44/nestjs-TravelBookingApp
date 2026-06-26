@@ -7,11 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserStatus } from './enums/status.enum';
 import { UserRole } from './enums/role.enum';
-import { config } from 'dotenv';
-import { join } from 'path';
 import { RedisService } from '../redis/redis.service';
-
-config({ path: join(process.cwd(), 'apps/user-service/.env') });
 
 @Injectable()
 export class UserService {
@@ -23,10 +19,13 @@ export class UserService {
 
   // Hash the password with bcrypt and a pepper before saving the user
   async create(createUserDto: CreateUserDto) {
-    const passwordHash = bcrypt.hashSync(
-      createUserDto.password + process.env.PEPPER,
-      10,
-    );
+    const pepper = process.env.PEPPER;
+
+    if (!pepper) {
+      throw new Error('PEPPER environment variable is null');
+    }
+
+    const passwordHash = bcrypt.hashSync(createUserDto.password + pepper, 10);
     const user = this.userRepository.create({
       ...createUserDto,
       passwordHash: passwordHash,

@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Delete,
-  Query,
 } from '@nestjs/common';
 
 import { PaymentServiceService } from './payment-service.service';
@@ -17,14 +16,6 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 @Controller('payments')
 export class PaymentServiceController {
   constructor(private readonly paymentService: PaymentServiceService) {}
-
-  /**
-   * health check
-   */
-  @Get('hello')
-  getHello() {
-    return this.paymentService.getHello();
-  }
 
   /**
    * tạo payment
@@ -89,7 +80,7 @@ export class PaymentServiceController {
     @Body()
     body: {
       transactionId?: string;
-      metadata?: any;
+      metadata?: Record<string, unknown>;
     },
   ) {
     return this.paymentService.confirm(id, body.transactionId, body.metadata);

@@ -83,7 +83,7 @@ export class PaymentIntegrationController {
 
       status: PaymentStatus;
 
-      gatewayResponse?: any;
+      gatewayResponse?: Record<string, unknown>;
     },
   ) {
     return this.paymentService.handleCallback(
@@ -103,17 +103,11 @@ export class PaymentIntegrationController {
     @Param('id')
     id: string,
 
-    @Body()
-    body: {
-      transactionId: string;
-
-      paymentUrl?: string;
-    },
+    UpdatePaymentIntegrationDto: UpdatePaymentIntegrationDto,
   ) {
     return this.paymentService.updateTransaction(
       id,
-      body.transactionId,
-      body.paymentUrl,
+      UpdatePaymentIntegrationDto,
     );
   }
 
