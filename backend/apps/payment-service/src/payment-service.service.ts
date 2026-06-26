@@ -1,108 +1,293 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 
-export type PaymentStatus =
-  | 'INITIATED'
-  | 'REDIRECTED'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'REFUNDED';
+import { InjectRepository } from '@nestjs/typeorm';
 
-export interface PaymentSessionInput {
-  bookingId: string;
-  amount: number;
-  currency: string;
-  customerEmail: string;
-  returnUrl: string;
-}
+import { Repository } from 'typeorm';
 
-export interface PaymentSessionRecord extends PaymentSessionInput {
-  id: string;
-  status: PaymentStatus;
-  redirectUrl: string;
-  transactionId?: string;
-  failureReason?: string;
-  createdAt: string;
-  updatedAt: string;
-  paidAt?: string;
-}
+import { Payment } from './entities/payment.entity';
 
-export interface PaymentResult {
-  payment: PaymentSessionRecord;
-  redirectUrl?: string;
-}
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
-let paymentSequence = 0;
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
-const createPaymentId = () => `payment-${++paymentSequence}`;
+import { PaymentStatus } from './enums/status.enum';
+
+import { RedisService } from './redis/redis.service';
 
 @Injectable()
 export class PaymentServiceService {
-  private readonly payments = new Map<string, PaymentSessionRecord>();
+  constructor(
+    @InjectRepository(Payment)
+    private paymentRepository: Repository<Payment>,
+    private readonly redis: RedisService,
+  ) {}
 
-  createPaymentSession(input: PaymentSessionInput): PaymentResult {
-    if (input.amount <= 0) {
-      throw new BadRequestException('amount must be greater than 0');
+  /**
+   * tạo payment
+   *
+   * booking-service gọi
+   */
+  async create(createDto: CreatePaymentDto) {
+    const { bookingId, userId, amount, currency, provider } = createDto;
+
+    if (amount <= 0) {
+      throw new BadRequestException('Amount must be greater than 0');
     }
 
-    const now = new Date().toISOString();
-    const id = createPaymentId();
-    const redirectUrl = `https://payments.example.com/checkout/${id}`;
+    const payment = this.paymentRepository.create({
+      bookingId,
 
-    const payment: PaymentSessionRecord = {
-      id,
-      ...input,
-      status: 'REDIRECTED',
-      redirectUrl,
-      createdAt: now,
-      updatedAt: now,
-    };
+      userId,
 
-    this.payments.set(id, payment);
+      amount,
 
-    return {
-      payment,
-      redirectUrl,
-    };
+      currency,
+
+      provider,
+
+      status: PaymentStatus.PENDING,
+    });
+
+    const createdPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return createdPayment;
   }
 
-  getPayment(id: string): PaymentSessionRecord {
-    const payment = this.payments.get(id);
+  /**
+   * lấy tất cả payment
+   */
+  async findAll() {
+    const key = 'payment:list';
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached) as Payment[];
+    }
+
+    const payments = await this.paymentRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    await this.redis.set(key, JSON.stringify(payments), 3600);
+
+    return payments;
+  }
+
+  /**
+   * lấy payment detail
+   */
+  async findOne(id: string): Promise<Payment> {
+    const key = `payment:${id}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached) as Payment;
+    }
+
+    const payment = await this.paymentRepository.findOne({
+      where: {
+        id,
+      },
+    });
 
     if (!payment) {
-      throw new NotFoundException('Payment session not found');
+      throw new NotFoundException('Payment not found');
     }
 
+    await this.redis.set(key, JSON.stringify(payment), 3600);
+
     return payment;
   }
 
-  confirmPayment(id: string, transactionId: string): PaymentSessionRecord {
-    const payment = this.getPayment(id);
+  async getPayment(id: string) {
+    return this.findOne(id);
+  }
 
-    payment.status = 'SUCCEEDED';
+  /**
+   * lấy payment theo booking
+   */
+  async findByBookingId(bookingId: string) {
+    const key = `payment:booking:${bookingId}`;
+
+    const cached = await this.redis.get(key);
+
+    if (cached) {
+      return JSON.parse(cached) as Payment[];
+    }
+
+    const payments = await this.paymentRepository.find({
+      where: {
+        bookingId,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    await this.redis.set(key, JSON.stringify(payments), 3600);
+
+    return payments;
+  }
+
+  /**
+   * bắt đầu thanh toán
+   *
+   * PENDING -> PROCESSING
+   */
+  async process(id: string) {
+    const payment = await this.findOne(id);
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Payment cannot be processed');
+    }
+
+    payment.status = PaymentStatus.PROCESSING;
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
+  }
+
+  /**
+   * mock payment success
+   *
+   * hoặc dùng cho webhook
+   *
+   * PROCESSING -> SUCCESS
+   */
+  async confirm(
+    id: string,
+    transactionId?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<Payment> {
+    const payment = await this.findOne(id);
+
+    if (payment.status !== PaymentStatus.PROCESSING) {
+      throw new BadRequestException('Invalid payment status');
+    }
+
+    payment.status = PaymentStatus.SUCCESS;
+
     payment.transactionId = transactionId;
-    payment.paidAt = new Date().toISOString();
-    payment.updatedAt = payment.paidAt;
 
-    return payment;
+    payment.metadata = metadata;
+
+    payment.paidAt = new Date();
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
   }
 
-  failPayment(id: string, failureReason: string): PaymentSessionRecord {
-    const payment = this.getPayment(id);
+  /**
+   * payment failed
+   */
+  async fail(id: string, reason?: string) {
+    const payment = await this.findOne(id);
 
-    payment.status = 'FAILED';
-    payment.failureReason = failureReason;
-    payment.updatedAt = new Date().toISOString();
+    if (payment.status === PaymentStatus.SUCCESS) {
+      throw new BadRequestException('Cannot fail successful payment');
+    }
 
-    return payment;
+    payment.status = PaymentStatus.FAILED;
+
+    payment.metadata = {
+      reason,
+    };
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
   }
 
-  refundPayment(id: string, reason: string): PaymentSessionRecord {
-    const payment = this.getPayment(id);
+  /**
+   * cancel payment
+   */
+  async cancel(id: string) {
+    const payment = await this.findOne(id);
 
-    payment.status = 'REFUNDED';
-    payment.failureReason = reason;
-    payment.updatedAt = new Date().toISOString();
+    if (payment.status === PaymentStatus.SUCCESS) {
+      throw new BadRequestException('Cannot cancel paid payment');
+    }
 
-    return payment;
+    payment.status = PaymentStatus.CANCELLED;
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
+  }
+
+  /**
+   * refund
+   *
+   * SUCCESS -> REFUNDED
+   */
+  async refund(id: string, reason?: string) {
+    const payment = await this.findOne(id);
+
+    if (payment.status !== PaymentStatus.SUCCESS) {
+      throw new BadRequestException('Only successful payment can refund');
+    }
+
+    payment.status = PaymentStatus.REFUNDED;
+
+    payment.metadata = {
+      reason,
+    };
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
+  }
+
+  /**
+   * update metadata/url
+   */
+  async update(id: string, dto: UpdatePaymentDto) {
+    const payment = await this.findOne(id);
+
+    Object.assign(payment, dto);
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    await this.invalidatePaymentCache();
+
+    return updatedPayment;
+  }
+
+  async remove(id: string) {
+    const payment = await this.findOne(id);
+
+    await this.paymentRepository.remove(payment);
+
+    await this.invalidatePaymentCache();
+
+    return {
+      message: 'Payment deleted successfully',
+    };
+  }
+
+  private async invalidatePaymentCache() {
+    await this.redis.delPattern('payment:*');
   }
 }

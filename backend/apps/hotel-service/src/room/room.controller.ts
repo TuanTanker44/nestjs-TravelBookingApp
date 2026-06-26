@@ -10,7 +10,6 @@ import {
 import { RoomService } from './room.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
-import { SearchRoomDto } from './dto/search-room.dto';
 
 @Controller('room')
 export class RoomController {

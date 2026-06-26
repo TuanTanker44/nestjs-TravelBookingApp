@@ -73,7 +73,7 @@ export class RoomInventoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as boolean;
     }
 
     const inventories = await this.inventoryRepository.find({
@@ -361,7 +361,7 @@ export class RoomInventoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomInventory[];
     }
 
     const inventories = await this.inventoryRepository.find({
@@ -381,7 +381,7 @@ export class RoomInventoryService {
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as RoomInventory;
     }
 
     const inventory = await this.inventoryRepository.findOne({

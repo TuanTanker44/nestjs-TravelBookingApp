@@ -34,9 +34,9 @@ export class UserController {
   @Post('change-status/:id')
   async changeStatus(
     @Param('id') id: string,
-    @Body() { status }: { status: string },
+    @Body() { status }: { status: UserStatus },
   ) {
-    await this.userService.updateStatus(id, UserStatus[status]);
+    await this.userService.updateStatus(id, status);
     return this.userService.findOne(id);
   }
 

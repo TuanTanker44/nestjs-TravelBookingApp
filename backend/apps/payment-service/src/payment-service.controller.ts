@@ -1,58 +1,149 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 
 import { PaymentServiceService } from './payment-service.service';
 
-@Controller()
-export class PaymentServiceController {
-  constructor(private readonly paymentServiceService: PaymentServiceService) {}
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
-  @Get()
-  getHello() {
-    return {
-      message: 'Payment service is running',
-    };
+@Controller('payments')
+export class PaymentServiceController {
+  constructor(private readonly paymentService: PaymentServiceService) {}
+
+  /**
+   * tạo payment
+   * booking-service gọi endpoint này
+   */
+  @Post()
+  create(@Body() createPaymentDto: CreatePaymentDto) {
+    return this.paymentService.create(createPaymentDto);
   }
 
-  @Post('payments/session')
-  createPaymentSession(
+  /**
+   * lấy tất cả payment
+   */
+  @Get()
+  findAll() {
+    return this.paymentService.findAll();
+  }
+
+  /**
+   * lấy payment theo bookingId
+   *
+   * GET /payments/booking/:bookingId
+   */
+  @Get('booking/:bookingId')
+  findByBooking(@Param('bookingId') bookingId: string) {
+    return this.paymentService.findByBookingId(bookingId);
+  }
+
+  /**
+   * detail payment
+   *
+   * GET /payments/:id
+   */
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.paymentService.getPayment(id);
+  }
+
+  /**
+   * bắt đầu thanh toán
+   *
+   * PENDING -> PROCESSING
+   */
+  @Post(':id/process')
+  process(@Param('id') id: string) {
+    return this.paymentService.process(id);
+  }
+
+  /**
+   * confirm payment
+   *
+   * PROCESSING -> SUCCESS
+   *
+   * dùng cho:
+   * - mock gateway
+   * - webhook
+   */
+  @Post(':id/confirm')
+  confirm(
+    @Param('id') id: string,
+
     @Body()
     body: {
-      bookingId: string;
-      amount: number;
-      currency: string;
-      customerEmail: string;
-      returnUrl: string;
+      transactionId?: string;
+      metadata?: Record<string, unknown>;
     },
   ) {
-    return this.paymentServiceService.createPaymentSession(body);
+    return this.paymentService.confirm(id, body.transactionId, body.metadata);
   }
 
-  @Get('payments/:id')
-  getPayment(@Param('id') id: string) {
-    return this.paymentServiceService.getPayment(id);
-  }
-
-  @Post('payments/:id/confirm')
-  confirmPayment(
+  /**
+   * payment fail
+   */
+  @Post(':id/fail')
+  fail(
     @Param('id') id: string,
-    @Body() body: { transactionId: string },
+
+    @Body()
+    body: {
+      reason?: string;
+    },
   ) {
-    return this.paymentServiceService.confirmPayment(id, body.transactionId);
+    return this.paymentService.fail(id, body.reason);
   }
 
-  @Post('payments/:id/fail')
-  failPayment(
-    @Param('id') id: string,
-    @Body() body: { failureReason: string },
-  ) {
-    return this.paymentServiceService.failPayment(id, body.failureReason);
+  /**
+   * cancel payment
+   */
+  @Post(':id/cancel')
+  cancel(@Param('id') id: string) {
+    return this.paymentService.cancel(id);
   }
 
-  @Post('payments/:id/refund')
-  refundPayment(
+  /**
+   * refund
+   *
+   * SUCCESS -> REFUNDED
+   */
+  @Post(':id/refund')
+  refund(
     @Param('id') id: string,
-    @Body() body: { reason: string },
+
+    @Body()
+    body: {
+      reason?: string;
+    },
   ) {
-    return this.paymentServiceService.refundPayment(id, body.reason);
+    return this.paymentService.refund(id, body.reason);
+  }
+
+  /**
+   * update payment
+   */
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+
+    @Body()
+    updatePaymentDto: UpdatePaymentDto,
+  ) {
+    return this.paymentService.update(id, updatePaymentDto);
+  }
+
+  /**
+   * delete payment
+   */
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.paymentService.remove(id);
   }
 }
