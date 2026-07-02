@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, Headers, Res } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Headers,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Response } from 'express';
 
 import { AuthServiceService } from './auth-service.service';
@@ -68,7 +76,11 @@ export class AuthServiceController {
    * x-user-id: uuid
    */
   @Get('me')
-  async me(@Headers('x-user-id') userId: string) {
+  async me(@Headers('x-user-id') userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+
     return this.authService.getMe(userId);
   }
 }

@@ -502,4 +502,25 @@ export class HotelService {
 
     return params.toString();
   }
+
+  async getPopularDestinations(limit = 6) {
+    const result = await this.hotelRepository
+      .createQueryBuilder('hotel')
+      .select('hotel.city', 'city')
+      .addSelect('hotel.country', 'country')
+      .addSelect('COUNT(hotel.id)', 'totalHotels')
+      .groupBy('hotel.city')
+      .addGroupBy('hotel.country')
+      .orderBy('totalHotels', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return result.map(
+      (item: { city: string; country: string; totalHotels: string }) => ({
+        city: item.city,
+        country: item.country,
+        totalHotels: Number(item.totalHotels),
+      }),
+    );
+  }
 }

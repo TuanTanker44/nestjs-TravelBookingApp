@@ -15,7 +15,7 @@ export interface User {
 
 @Injectable()
 export class UserClient {
-  private readonly userServiceUrl = 'http://user-service:3009/user';
+  private readonly userServiceUrl = 'http://localhost:3009/user';
 
   constructor(private readonly http: HttpService) {}
 

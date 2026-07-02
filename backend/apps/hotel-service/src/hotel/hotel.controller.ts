@@ -83,4 +83,9 @@ export class HotelController {
   remove(@Param('id') id: string) {
     return this.hotelService.remove(id);
   }
+
+  @Get('/destinations/popular')
+  async popular(@Query('limit') limit?: number) {
+    return this.hotelService.getPopularDestinations(limit ? Number(limit) : 10);
+  }
 }
