@@ -41,13 +41,11 @@ export class Hotel {
   @Column({ type: 'varchar', length: 20, nullable: false, default: 'ACTIVE' })
   status!: 'ACTIVE' | 'INACTIVE';
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt!: Date;
 
   @UpdateDateColumn({
     type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
   })
-  updated_at!: Date;
+  updatedAt!: Date;
 }

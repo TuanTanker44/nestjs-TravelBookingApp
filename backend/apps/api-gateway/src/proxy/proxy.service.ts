@@ -50,7 +50,9 @@ export class ProxyService {
 
       console.log('data:', axiosError.response?.data);
 
-      throw new Error('Proxy error');
+      throw new Error(
+        `Error from '${serviceUrl}' service: ${axiosError.message}`,
+      );
     }
   }
 }

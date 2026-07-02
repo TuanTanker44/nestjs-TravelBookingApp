@@ -1,16 +1,12 @@
-import {
-  BadRequestException,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { RedisService } from './redis/redis.service';
 
-import { SearchRoomDto } from './dto/search-room.dto';
-import { firstValueFrom } from 'rxjs/internal/firstValueFrom';
-import { SearchDto } from './dto/search.dto';
+import { SearchAvailableRoomDto } from './dto/search-available-room.dto';
+import { firstValueFrom } from 'rxjs';
+import { QuickSearchDto } from './dto/quick-search.dto';
 
-export interface SearchResultItem {
+export interface AvailableRoomItem {
   id: string;
   hotelId: string;
   name?: string;
@@ -24,10 +20,29 @@ export interface SearchResultItem {
   updatedAt: Date;
 }
 
-export interface SearchResult {
-  query: SearchRoomDto;
+export interface AvailableRoomSearchResult {
+  query: SearchAvailableRoomDto;
   total: number;
-  items: SearchResultItem[];
+  items: AvailableRoomItem[];
+}
+
+interface QuickSearchHotel {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  address: string;
+  rating: number;
+}
+
+interface QuickSearchRoom {
+  id: string;
+  hotelId: string;
+  name: string;
+}
+
+interface QuickSearchResult {
+  hotels: QuickSearchHotel[];
 }
 
 @Injectable()
@@ -36,109 +51,48 @@ export class SearchServiceService {
     private readonly httpService: HttpService,
     private readonly redis: RedisService,
   ) {}
-  private readonly hotelServiceUrl =
-    process.env.HOTEL_SERVICE_URL ?? 'http://localhost:3004';
+  private readonly hotelServiceUrl = process.env.HOTEL_SERVICE_URL;
 
-  private buildCacheKey(prefix: string, value: string) {
-    return `${prefix}:${value.trim().toLowerCase().replace(/\s+/g, '')}`;
-  }
+  private buildCacheKey(
+    prefix: string,
+    value: string | Record<string, unknown>,
+  ) {
+    if (typeof value === 'string') {
+      return `${prefix}:${value.trim().toLowerCase().replace(/\s+/g, '')}`;
+    }
 
-  private buildQueryCacheKey(prefix: string, query: SearchRoomDto | SearchDto) {
     const params = new URLSearchParams();
 
-    Object.entries(query)
-      .filter(
-        ([, value]) => value !== undefined && value !== null && value !== '',
-      )
-      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
-      .forEach(([key, value]) => {
-        params.set(key, Array.isArray(value) ? value.join(',') : String(value));
+    Object.entries(value)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([key, v]) => {
+        params.set(key, Array.isArray(v) ? v.join(',') : String(v));
       });
 
     return `${prefix}:${params.toString()}`;
   }
 
-  private mapRoom(room: Partial<SearchResultItem>): SearchResultItem {
-    return {
-      id: room.id ?? '',
-      hotelId: room.hotelId ?? '',
-      name: room.name,
-      city: room.city ?? '',
-      type: room.type ?? '',
-      price: Number(room.price ?? 0),
-      capacity: Number(room.capacity ?? 0),
-      status: room.status ?? '',
-      description: room.description,
-      createdAt: room.createdAt ? new Date(room.createdAt) : new Date(),
-      updatedAt: room.updatedAt ? new Date(room.updatedAt) : new Date(),
-    };
-  }
-
-  private async fetchRoomCatalog(): Promise<SearchResultItem[]> {
-    const key = 'search:room-catalog';
-
-    const cached = await this.redis.get(key);
-
-    if (cached) {
-      return JSON.parse(cached) as SearchResultItem[];
-    }
-
-    // const hotelEndpoint = `${this.hotelServiceUrl}/hotels/search`;
-    const roomEndpoint = `${this.hotelServiceUrl}/room`;
-
-    // const hotels = await this.fetchHotelsByCity(query.city);
-
-    // const hotelIds = hotels.map((hotel) => hotel.id);
-
-    // if (!hotelIds.length) {
-    //   return {
-    //     total: 0,
-    //     items: [],
-    //   };
-    // }
-
-    let response: Response;
-    try {
-      response = await fetch(roomEndpoint);
-    } catch {
-      throw new ServiceUnavailableException(
-        'Cannot connect to hotel-service room API',
-      );
-    }
-
-    if (!response.ok) {
-      throw new ServiceUnavailableException(
-        `Hotel-service room API returned status ${response.status}`,
-      );
-    }
-
-    const payload = (await response.json()) as unknown;
-    const rooms = Array.isArray(payload)
-      ? payload
-      : Array.isArray((payload as { data?: unknown[] }).data)
-        ? (payload as { data: unknown[] }).data
-        : [];
-
-    const mappedRooms = rooms.map((room) =>
-      this.mapRoom(room as Partial<SearchResultItem>),
+  async searchAvailableRooms(
+    dto: SearchAvailableRoomDto,
+  ): Promise<AvailableRoomSearchResult> {
+    const key = this.buildCacheKey(
+      'search:available',
+      dto as unknown as Record<string, unknown>,
     );
 
-    await this.redis.set(key, JSON.stringify(mappedRooms), 3600);
-
-    return mappedRooms;
-  }
-
-  async searchRooms(query: SearchRoomDto): Promise<SearchResult> {
-    const key = this.buildQueryCacheKey('search:rooms', query);
-
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached) as SearchResult;
+      return JSON.parse(cached) as AvailableRoomSearchResult;
     }
 
-    const checkIn = new Date(query.checkIn);
-    const checkOut = new Date(query.checkOut);
+    // =========================
+    // Validate dates
+    // =========================
+
+    const checkIn = new Date(dto.checkIn);
+    const checkOut = new Date(dto.checkOut);
 
     if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) {
       throw new BadRequestException('checkIn and checkOut must be valid dates');
@@ -149,117 +103,170 @@ export class SearchServiceService {
     }
 
     const now = new Date();
+
     const upperBound = new Date(now);
-    upperBound.setDate(upperBound.getDate() + 7);
+    upperBound.setDate(now.getDate() + 7);
 
     if (checkIn < now || checkIn > upperBound) {
-      throw new BadRequestException(
-        'checkIn must be within the next 7 days from search time',
-      );
+      throw new BadRequestException('checkIn must be within the next 7 days');
     }
 
-    const guestCount = (query.adults ?? 0) + (query.children ?? 0);
-    const roomCatalog = await this.fetchRoomCatalog();
+    // =========================
+    // Hotel filter
+    // =========================
 
-    const matches = roomCatalog.filter((room) => {
-      const cityMatch =
-        query.city || room.city.toLowerCase() === query.city.toLowerCase();
-      const roomTypeMatch = !query.roomType || room.type === query.roomType;
-      const priceMinMatch =
-        query.minPrice === undefined || room.price >= query.minPrice;
-      const priceMaxMatch =
-        query.maxPrice === undefined || room.price <= query.maxPrice;
-      const guestMatch = guestCount <= room.capacity;
-      const statusMatch = room.status === 'available';
+    /**
+     * Sau này:
+     *
+     * const hotelIds = await this.hotelService.findHotels({
+     *    city: dto.city,
+     *    minRating: dto.minRating,
+     * });
+     *
+     * Hiện tại tạm bỏ qua.
+     */
 
-      return (
-        cityMatch &&
-        roomTypeMatch &&
-        priceMinMatch &&
-        priceMaxMatch &&
-        guestMatch &&
-        statusMatch
-      );
-    });
+    const guestCount = (dto.adults ?? 0) + (dto.children ?? 0);
 
-    const sortBy = query.sortBy ?? 'priceAsc';
-    const sortedMatches = [...matches].sort((left, right) => {
-      if (sortBy === 'priceAsc') {
-        return left.price - right.price;
-      }
+    // =========================
+    // Call Hotel Service
+    // =========================
 
-      if (sortBy === 'priceDesc') {
-        return right.price - left.price;
-      }
+    const roomResponse = await firstValueFrom(
+      this.httpService.post(`${this.hotelServiceUrl}/room/filter`, {
+        // hotelIds,
 
-      return right.updatedAt.getTime() - left.updatedAt.getTime();
-    });
+        keyword: dto.keyword,
 
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
-    const offset = (page - 1) * limit;
+        roomType: dto.roomType,
 
-    const result = {
-      query,
-      total: sortedMatches.length,
-      items: sortedMatches.slice(offset, offset + limit),
+        capacity: guestCount,
+
+        minPrice: dto.minPrice,
+
+        maxPrice: dto.maxPrice,
+
+        amenities: dto.facilities,
+
+        sortBy: dto.sortBy,
+
+        order: dto.order,
+
+        page: dto.page,
+
+        limit: dto.limit,
+
+        status: 'AVAILABLE',
+      }),
+    );
+
+    const roomResult = roomResponse.data as {
+      data: AvailableRoomItem[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+
+    // =========================
+    // Inventory check
+    // =========================
+
+    /**
+     * Sau này:
+     *
+     * const inventory =
+     *    await inventoryService.checkAvailability(...)
+     *
+     * const availableIds = ...
+     *
+     * const availableRooms =
+     *    roomResult.data.filter(...)
+     */
+
+    const result: AvailableRoomSearchResult = {
+      query: dto,
+
+      total: roomResult.total,
+
+      items: roomResult.data,
     };
 
     await this.redis.set(key, JSON.stringify(result), 3600);
 
     return result;
   }
-  // =========================
-  // SEARCH HOTEL
-  // =========================
-  async searchHotels(keyword?: string) {
-    const key = this.buildCacheKey('search:hotel', keyword ?? '');
+
+  async quickSearch(dto: QuickSearchDto): Promise<QuickSearchResult> {
+    const key = this.buildCacheKey('search:quick', dto.keyword ?? '');
 
     const cached = await this.redis.get(key);
 
     if (cached) {
-      return JSON.parse(cached) as SearchResult;
+      return JSON.parse(cached) as QuickSearchResult;
     }
 
-    const response = await firstValueFrom(
-      this.httpService.get('http://hotel-service:3001/hotels/search', {
-        params: {
-          keyword,
-        },
-      }),
-    );
+    // search hotel và room song song
+    const [hotelResponse, roomResponse] = await Promise.all([
+      firstValueFrom(
+        this.httpService.get(`${this.hotelServiceUrl}/hotel/search`, {
+          params: {
+            keyword: dto.keyword,
+            limit: dto.limit ?? 10,
+          },
+        }),
+      ),
 
-    const result = response.data as SearchResult;
+      firstValueFrom(
+        this.httpService.get(`${this.hotelServiceUrl}/room/search`, {
+          params: {
+            keyword: dto.keyword,
+            limit: dto.limit ?? 10,
+          },
+        }),
+      ),
+    ]);
 
-    await this.redis.set(key, JSON.stringify(result), 3600);
+    const hotels = hotelResponse.data as QuickSearchHotel[];
 
-    return result;
-  }
+    const roomPayload = roomResponse.data as {
+      data: QuickSearchRoom[];
+    };
 
-  // =========================
-  // SEARCH ROOM
-  // =========================
-  async searchRoomsByKeyword(searchDto: SearchDto) {
-    const key = this.buildQueryCacheKey('search:room', searchDto);
+    console.log('roomPayload:', roomPayload);
 
-    const cached = await this.redis.get(key);
+    // hotelId lấy từ room
+    const hotelIdsFromRoom = [
+      ...new Set(roomPayload.data.map((room) => room.hotelId)),
+    ];
 
-    if (cached) {
-      return JSON.parse(cached) as SearchResult;
+    console.log('hotelIdsFromRoom:', hotelIdsFromRoom);
+    console.log('hotelIdsFromRoom.length:', hotelIdsFromRoom.length);
+
+    let hotelsFromRoom: QuickSearchHotel[] = [];
+
+    if (hotelIdsFromRoom.length > 0) {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.hotelServiceUrl}/hotel/search/ids`, {
+          ids: hotelIdsFromRoom,
+        }),
+      );
+
+      hotelsFromRoom = response.data as QuickSearchHotel[];
     }
 
-    const response = await firstValueFrom(
-      this.httpService.get('http://hotel-service:3001/rooms/search', {
-        params: {
-          keyword: searchDto.keyword,
-          amenities: searchDto.amenities,
-        },
-      }),
-    );
+    // merge + remove duplicate
+    const hotelMap = new Map<string, QuickSearchHotel>();
 
-    const result = response.data as SearchResult;
+    [...hotels, ...hotelsFromRoom].forEach((hotel) => {
+      hotelMap.set(hotel.id, hotel);
+    });
 
-    await this.redis.set(key, JSON.stringify(result), 3600);
+    const result: QuickSearchResult = {
+      hotels: [...hotelMap.values()],
+    };
+
+    await this.redis.set(key, JSON.stringify(result), 300);
 
     return result;
   }

@@ -12,47 +12,16 @@ export class SearchHotelDto {
   keyword?: string;
 
   @IsOptional()
-  @IsString()
-  city?: string;
-
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @ToNumber()
   @IsNumber()
-  @Min(0)
-  @Max(5)
-  minRating?: number;
-
-  @IsOptional()
   @ToNumber()
-  @IsNumber()
-  minReviewCount?: number;
+  @Min(1)
+  @Max(100)
+  page?: number = 1;
 
   @IsOptional()
+  @IsNumber()
   @ToNumber()
-  @IsNumber()
-  minPrice?: number;
-
-  @IsOptional()
-  @ToNumber()
-  @IsNumber()
-  maxPrice?: number;
-
-  @IsOptional()
-  @IsString()
-  sortBy?: 'price' | 'rating';
-
-  @IsOptional()
-  @IsString()
-  order?: 'ASC' | 'DESC';
-
-  page?: number;
-  limit?: number;
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
 }

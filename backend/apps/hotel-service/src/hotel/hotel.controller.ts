@@ -23,10 +23,14 @@ export class HotelController {
     return this.hotelService.create(createHotelDto);
   }
 
+  @Post('search/ids')
+  findByIds(@Body('ids') ids: string[]) {
+    return this.hotelService.findByIds(ids);
+  }
+
   @Get('search')
   async search(@Query() dto: SearchHotelDto) {
-    const result = await this.hotelService.search(dto);
-    return result;
+    return this.hotelService.search(dto);
   }
 
   @Get('search/name/:name')

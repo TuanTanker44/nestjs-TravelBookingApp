@@ -101,6 +101,8 @@ export class ProxyController {
 export class ProxyDevController {
   constructor(private readonly proxy: ProxyService) {}
 
+  // PUBLIC ROUTES
+
   @Public()
   @All('auth/login')
   login(@Req() req: Request) {
@@ -143,6 +145,20 @@ export class ProxyDevController {
     return this.proxy.forward(SERVICES_DEV.AUTH, '', req);
   }
 
+  @Public()
+  @All('search/*path')
+  searchPublic(@Req() req: Request) {
+    return this.proxy.forward(SERVICES_DEV.SEARCH, '', req);
+  }
+
+  @Public()
+  @All('hotel/destinations/popular')
+  hotelsPublic(@Req() req: Request) {
+    return this.proxy.forward(SERVICES_DEV.HOTEL, '', req);
+  }
+
+  // PRIVATE ROUTES
+
   @UseGuards(JwtGuard)
   @All('auth/*path')
   auth(@Req() req: Request) {
@@ -150,13 +166,13 @@ export class ProxyDevController {
   }
 
   @UseGuards(JwtGuard)
-  @All('users/*path')
+  @All('user/*path')
   users(@Req() req: Request) {
     return this.proxy.forward(SERVICES_DEV.USER, '', req);
   }
 
   @UseGuards(JwtGuard)
-  @All('hotels/*path')
+  @All('hotel/*path')
   hotels(@Req() req: Request) {
     return this.proxy.forward(SERVICES_DEV.HOTEL, '', req);
   }
@@ -171,12 +187,6 @@ export class ProxyDevController {
   @All('payments/*path')
   payments(@Req() req: Request) {
     return this.proxy.forward(SERVICES_DEV.PAYMENT, '', req);
-  }
-
-  @UseGuards(JwtGuard)
-  @All('search/*path')
-  search(@Req() req: Request) {
-    return this.proxy.forward(SERVICES_DEV.SEARCH, '', req);
   }
 
   @UseGuards(JwtGuard)
