@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { Request } from 'express';
+import { AxiosError } from 'axios';
 
 @Injectable()
 export class ProxyService {
@@ -17,19 +18,41 @@ export class ProxyService {
 
     const url = serviceUrl + path;
 
-    const response = await firstValueFrom(
-      this.http.request({
-        url,
-        method: req.method,
-        headers: {
-          ...(req.headers as Record<string, any>),
-          // remove host of gateway
-          host: undefined,
-        },
-        data: req.body as unknown,
-      }),
-    );
+    const headers = {
+      ...(req.headers as Record<string, any>),
+    };
+    const body: unknown = req.body;
 
-    return response.data as unknown;
+    delete headers.host;
+    delete headers['content-length'];
+
+    if (req.user) {
+      headers['x-user-id'] = (req.user as { sub: string }).sub;
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.http.request({
+          url,
+          method: req.method,
+          headers,
+          data: body,
+        }),
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError<unknown>;
+
+      console.log('message:', axiosError.message);
+
+      console.log('status:', axiosError.response?.status);
+
+      console.log('data:', axiosError.response?.data);
+
+      throw new Error(
+        `Error from '${serviceUrl}' service: ${axiosError.message}`,
+      );
+    }
   }
 }

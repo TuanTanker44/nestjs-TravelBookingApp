@@ -5,7 +5,7 @@ import { Room } from './entities/room.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { HotelService } from '../hotel/hotel.service';
-import { RoomStatus } from './enums/room_status.enum';
+import { RoomStatus } from './enums/room-status.enum';
 import { SearchRoomDto } from './dto/search-room.dto';
 import { RoomAmenityService } from '../room_amenity/room_amenity.service';
 import { RedisService } from '../redis/redis.service';
@@ -115,7 +115,7 @@ export class RoomService {
     return this.roomRepository
       .createQueryBuilder('room')
       .where('room.status = :status', {
-        status: 'ACTIVE',
+        status: RoomStatus.AVAILABLE,
       });
   }
 
@@ -208,7 +208,7 @@ export class RoomService {
     }
   }
 
-  async searchRooms(dto: SearchRoomDto) {
+  async search(dto: SearchRoomDto) {
     const key = `room:search:${this.buildSearchCacheKey(dto)}`;
 
     const cached = await this.redis.get(key);
@@ -219,50 +219,26 @@ export class RoomService {
 
     const query = this.baseQuery();
 
-    // hotel filter
-    if (dto.hotelId) {
-      query.andWhere('room.hotelId = :hotelId', {
-        hotelId: dto.hotelId,
-      });
-    }
-
     // keyword search
     this.roomKeywordSearch(query, dto.keyword);
 
-    // intrinsic filters
-    this.roomIntrinsicFilter(query, dto.type, dto.capacity);
-
-    // price filters
-    this.applyPriceFilter(query, dto.minPrice, dto.maxPrice, dto.priceLevel);
-
-    // amenity filters
-    await this.applyAmenityFilter(dto.amenities);
-
-    // availability filter
-    // this.applyAvailabilityFilter(query, dto.checkIn, dto.checkOut);
-
-    // status filter
-    if (dto.status) {
-      query.andWhere('room.status = :status', {
-        status: dto.status,
-      });
-    }
-
-    // sorting
-    query.orderBy(`room.${dto.sortBy}`, dto.order);
+    // mặc định sắp xếp theo giá
+    query.orderBy('room.price', 'ASC');
 
     // pagination
-    query.skip((dto.page - 1) * dto.limit);
-    query.take(dto.limit);
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 10;
+    query.skip((page - 1) * limit);
+    query.take(dto.limit ?? 10);
 
     const [rooms, total] = await query.getManyAndCount();
 
     const payload = {
       data: rooms,
       total,
-      page: dto.page,
-      limit: dto.limit,
-      totalPages: Math.ceil(total / dto.limit),
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
 
     await this.redis.set(key, JSON.stringify(payload), 3600);

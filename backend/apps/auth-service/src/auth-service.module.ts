@@ -28,7 +28,7 @@ config({ path: join(process.cwd(), 'apps/auth-service/.env') });
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: {
-        expiresIn: '15m',
+        expiresIn: '1d',
       },
     }),
   ],

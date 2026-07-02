@@ -22,7 +22,7 @@ config({ path: join(process.cwd(), 'apps/hotel-service/.env') });
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME ?? 'hotel_db',
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
     }),
     HotelModule,
     RoomModule,

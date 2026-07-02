@@ -6,7 +6,7 @@ export function ToNumber(): PropertyDecorator {
   return Type(() => Number);
 }
 
-export class SearchRoomDto {
+export class QuickSearchDto {
   @IsOptional()
   @IsString()
   keyword?: string;

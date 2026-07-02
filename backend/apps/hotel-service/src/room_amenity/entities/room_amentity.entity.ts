@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('room_amenities')
+@Entity('room_amenity')
 export class RoomAmenity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -10,6 +10,6 @@ export class RoomAmenity {
   roomId!: string;
 
   @Index()
-  @Column({ type: 'decimal', precision: 10, scale: 0 })
+  @Column({ type: 'int' })
   amenityId!: number;
 }

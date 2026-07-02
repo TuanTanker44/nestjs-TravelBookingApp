@@ -1,0 +1,5 @@
+export const enum RoomStatus {
+  AVAILABLE = 'AVAILABLE',
+  UNAVAILABLE = 'UNAVAILABLE',
+  MAINTENANCE = 'MAINTENANCE',
+}

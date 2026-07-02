@@ -1,30 +1,20 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 
-import { SearchRoomDto } from './dto/search-room.dto';
+import { SearchAvailableRoomDto } from './dto/search-available-room.dto';
 import { SearchServiceService } from './search-service.service';
-import { SearchDto } from './dto/search.dto';
+import { QuickSearchDto } from './dto/quick-search.dto';
 
-@Controller()
+@Controller('search')
 export class SearchServiceController {
   constructor(private readonly searchServiceService: SearchServiceService) {}
 
-  @Get('search')
-  search(@Query() query: SearchRoomDto) {
-    return this.searchServiceService.searchRooms(query);
-  }
-  // =========================
-  // SEARCH HOTEL
-  // =========================
-  @Get('/hotel')
-  searchHotels(@Query() query: SearchDto) {
-    return this.searchServiceService.searchHotels(query.keyword);
+  @Post('/available-rooms')
+  async searchAvailableRooms(@Body() dto: SearchAvailableRoomDto) {
+    return this.searchServiceService.searchAvailableRooms(dto);
   }
 
-  // =========================
-  // SEARCH ROOM
-  // =========================
-  @Get('/room')
-  searchRoomsByKeyword(@Query() query: SearchDto) {
-    return this.searchServiceService.searchRoomsByKeyword(query);
+  @Get('/')
+  async quickSearch(@Query() dto: QuickSearchDto): Promise<unknown> {
+    return this.searchServiceService.quickSearch(dto);
   }
 }

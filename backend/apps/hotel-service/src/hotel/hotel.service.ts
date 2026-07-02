@@ -6,7 +6,7 @@ import {
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
+import { In, MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
 import { Hotel } from './entities/hotel.entity';
 import { SearchHotelDto } from './dto/search-hotel.dto';
 import { RedisService } from '../redis/redis.service';
@@ -80,6 +80,18 @@ export class HotelService {
     }
 
     return hotel;
+  }
+
+  async findByIds(ids: string[]) {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.hotelRepository.find({
+      where: {
+        id: In(ids),
+      },
+    });
   }
 
   async findByName(name: string) {
@@ -338,6 +350,9 @@ export class HotelService {
     query: SelectQueryBuilder<Hotel>,
     keyword: string,
   ) {
+    if (!keyword?.trim()) {
+      return;
+    }
     const normalized = this.normalizeKeyword(keyword);
 
     query.andWhere(
@@ -429,16 +444,16 @@ export class HotelService {
     return query;
   }
 
-  private applySorting(query: SelectQueryBuilder<Hotel>, dto: SearchHotelDto) {
-    if (dto.sortBy) {
-      const order = dto.order === 'DESC' ? 'DESC' : 'ASC';
-      if (dto.sortBy === 'price') {
-        query.orderBy('hotel.price_min', order);
-      } else if (dto.sortBy === 'rating') {
-        query.orderBy('hotel.rating_avg', order);
-      }
-    }
-  }
+  // private applySorting(query: SelectQueryBuilder<Hotel>, dto: SearchHotelDto) {
+  //   if (dto.sortBy) {
+  //     const order = dto.order === 'DESC' ? 'DESC' : 'ASC';
+  //     if (dto.sortBy === 'price') {
+  //       query.orderBy('hotel.price_min', order);
+  //     } else if (dto.sortBy === 'rating') {
+  //       query.orderBy('hotel.rating_avg', order);
+  //     }
+  //   }
+  // }
 
   private applyPagination(
     query: SelectQueryBuilder<Hotel>,
@@ -461,25 +476,15 @@ export class HotelService {
 
     const query = this.baseQuery();
 
-    if (dto.keyword) {
-      this.applyKeywordSearch(query, dto.keyword);
-    }
+    this.applyKeywordSearch(query, dto.keyword ?? '');
 
-    this.applyLocationFilter(query, dto.city, dto.country, dto.address);
+    query.orderBy('hotel.rating_avg', 'DESC');
 
-    if (dto.minRating) {
-      this.applyRatingFilter(query, dto.minRating);
-    }
-
-    this.applyPriceFilter(query, dto.minPrice, dto.maxPrice);
-
-    this.applySorting(query, dto);
-
-    this.applyPagination(query, dto);
+    query.take(dto.limit ?? 10);
 
     const hotels = await query.getMany();
 
-    await this.redis.set(key, JSON.stringify(hotels), 3600);
+    await this.redis.set(key, JSON.stringify(hotels), 300);
 
     return hotels;
   }
@@ -501,5 +506,26 @@ export class HotelService {
       });
 
     return params.toString();
+  }
+
+  async getPopularDestinations(limit = 6) {
+    const result = await this.hotelRepository
+      .createQueryBuilder('hotel')
+      .select('hotel.city', 'city')
+      .addSelect('hotel.country', 'country')
+      .addSelect('COUNT(hotel.id)', 'totalHotels')
+      .groupBy('hotel.city')
+      .addGroupBy('hotel.country')
+      .orderBy('totalHotels', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return result.map(
+      (item: { city: string; country: string; totalHotels: string }) => ({
+        city: item.city,
+        country: item.country,
+        totalHotels: Number(item.totalHotels),
+      }),
+    );
   }
 }

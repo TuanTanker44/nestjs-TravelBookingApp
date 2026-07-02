@@ -23,10 +23,14 @@ export class HotelController {
     return this.hotelService.create(createHotelDto);
   }
 
+  @Post('search/ids')
+  findByIds(@Body('ids') ids: string[]) {
+    return this.hotelService.findByIds(ids);
+  }
+
   @Get('search')
   async search(@Query() dto: SearchHotelDto) {
-    const result = await this.hotelService.search(dto);
-    return result;
+    return this.hotelService.search(dto);
   }
 
   @Get('search/name/:name')
@@ -82,5 +86,10 @@ export class HotelController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.hotelService.remove(id);
+  }
+
+  @Get('/destinations/popular')
+  async popular(@Query('limit') limit?: number) {
+    return this.hotelService.getPopularDestinations(limit ? Number(limit) : 10);
   }
 }

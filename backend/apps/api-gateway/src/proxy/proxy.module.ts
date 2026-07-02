@@ -2,15 +2,17 @@ import { Module } from '@nestjs/common';
 
 import { HttpModule } from '@nestjs/axios';
 
-import { ProxyController } from './proxy.controller';
+import { ProxyController, ProxyDevController } from './proxy.controller';
 
 import { ProxyService } from './proxy.service';
+
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [HttpModule],
 
-  controllers: [ProxyController],
+  controllers: [ProxyDevController],
 
-  providers: [ProxyService],
+  providers: [ProxyService, JwtService],
 })
 export class ProxyModule {}
