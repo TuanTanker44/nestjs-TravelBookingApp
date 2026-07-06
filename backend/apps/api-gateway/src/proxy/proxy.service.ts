@@ -26,6 +26,11 @@ export class ProxyService {
     delete headers.host;
     delete headers['content-length'];
 
+    delete headers['if-none-match'];
+    delete headers['if-modified-since'];
+    delete headers['cache-control'];
+    delete headers['pragma'];
+
     if (req.user) {
       headers['x-user-id'] = (req.user as { sub: string }).sub;
     }

@@ -8,6 +8,7 @@ import { JwtGuard } from '../auth/jwt.guard';
 import { Public } from '../decorators/public.decorator';
 import { SERVICES_DEV } from '../config/services-dev.config';
 
+// replace proxy dev controller with proxy controller in production
 @Controller()
 export class ProxyController {
   constructor(private readonly proxy: ProxyService) {}
@@ -146,7 +147,7 @@ export class ProxyDevController {
   }
 
   @Public()
-  @All('search/*path')
+  @All(['search', 'search/*path'])
   searchPublic(@Req() req: Request) {
     return this.proxy.forward(SERVICES_DEV.SEARCH, '', req);
   }

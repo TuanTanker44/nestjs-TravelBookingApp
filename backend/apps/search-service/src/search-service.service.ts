@@ -233,15 +233,10 @@ export class SearchServiceService {
       data: QuickSearchRoom[];
     };
 
-    console.log('roomPayload:', roomPayload);
-
     // hotelId lấy từ room
     const hotelIdsFromRoom = [
       ...new Set(roomPayload.data.map((room) => room.hotelId)),
     ];
-
-    console.log('hotelIdsFromRoom:', hotelIdsFromRoom);
-    console.log('hotelIdsFromRoom.length:', hotelIdsFromRoom.length);
 
     let hotelsFromRoom: QuickSearchHotel[] = [];
 
